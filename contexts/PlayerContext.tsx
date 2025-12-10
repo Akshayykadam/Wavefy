@@ -18,6 +18,8 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isPlaying, setIsPlaying] = useState(false); // Now a state variable
+  const [sleepTimer, setSleepTimer] = useState<number | null>(null);
+  const sleepTimerRef = useRef<NodeJS.Timeout | number | null>(null);
 
   // Ref to hold the position to seek to after loading a restored episode
   const initialSeekPosition = useRef<number | null>(null);
@@ -133,7 +135,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   useEffect(() => {
     if (player.isLoaded) {
       // Restore playback rate
-      player.setPlaybackRate(playbackRate);
+      player.setPlaybackRate(playbackRate, 'high');
 
       // Handle initial seek if needed
       if (initialSeekPosition.current !== null) {
@@ -204,10 +206,15 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     player.seekTo(currentSeconds - 10);
   }, [player]);
 
+  const changePlaybackRate = useCallback((rate: number) => {
+    setPlaybackRate(rate);
+    player.setPlaybackRate(rate, 'high');
+  }, [player]);
+
   const togglePlaybackSpeed = useCallback(() => {
     const nextRate = playbackRate === 1.0 ? 1.5 : playbackRate === 1.5 ? 2.0 : 1.0;
     setPlaybackRate(nextRate);
-    player.setPlaybackRate(nextRate);
+    player.setPlaybackRate(nextRate, 'high');
   }, [playbackRate, player]);
 
   const playNext = useCallback(async () => {
@@ -250,6 +257,28 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     setQueue(prev => [...prev, episode]);
   }, []);
 
+  const startSleepTimer = useCallback((minutes: number) => {
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+
+    if (minutes === 0) {
+      setSleepTimer(null);
+      return;
+    }
+
+    setSleepTimer(minutes);
+    sleepTimerRef.current = setTimeout(() => {
+      setIsPlaying(false);
+      setSleepTimer(null);
+      sleepTimerRef.current = null;
+    }, minutes * 60 * 1000);
+  }, []);
+
+  const cancelSleepTimer = useCallback(() => {
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    sleepTimerRef.current = null;
+    setSleepTimer(null);
+  }, []);
+
   return {
     currentEpisode,
     currentPodcast,
@@ -265,9 +294,13 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     skipForward,
     skipBackward,
     togglePlaybackSpeed,
+    changePlaybackRate,
     playNext,
     playPrevious,
     addToQueue,
     setQueue,
+    sleepTimer,
+    startSleepTimer,
+    cancelSleepTimer,
   };
 });

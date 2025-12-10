@@ -10,6 +10,9 @@ import {
   RotateCw,
   Download,
   Check,
+  MoreVertical,
+  X,
+  Clock,
 } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -23,6 +26,8 @@ import {
   LayoutAnimation,
   ScrollView,
   ActivityIndicator,
+  Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -65,11 +70,15 @@ export default function PlayerScreen() {
     togglePlaybackSpeed,
     playNext,
     playPrevious,
+    sleepTimer,
+    startSleepTimer,
+    changePlaybackRate,
   } = usePlayer();
 
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPosition, setSeekPosition] = useState(0);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
   const { isLiked, toggleLike } = useLikedEpisodes();
   const { isDownloaded, getDownloadProgress, downloadEpisode, deleteDownload } = useDownloads();
 
@@ -121,7 +130,21 @@ export default function PlayerScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>
             Now Playing
           </Text>
-          <View style={{ width: 32 }} />
+          <Pressable onPress={() => toggleLike({
+            ...currentEpisode,
+            artwork: currentEpisode.artwork || currentPodcast.artworkUrl600,
+            podcastTitle: currentPodcast.collectionName,
+            artistName: currentPodcast.artistName,
+          })} style={{ padding: 8 }}>
+            <Heart
+              color={isLiked(currentEpisode.id) ? Colors.accent : Colors.primaryText}
+              size={24}
+              fill={isLiked(currentEpisode.id) ? Colors.accent : "transparent"}
+            />
+          </Pressable>
+          <Pressable onPress={() => setMenuVisible(true)} style={{ padding: 8, marginRight: -8 }}>
+            <MoreVertical color={Colors.primaryText} size={24} />
+          </Pressable>
         </View>
 
         <ScrollView
@@ -141,9 +164,15 @@ export default function PlayerScreen() {
             <Text style={styles.episodeTitle} numberOfLines={2}>
               {currentEpisode.title}
             </Text>
-            <Text style={styles.podcastName} numberOfLines={1}>
-              {currentPodcast.collectionName}
-            </Text>
+            <Pressable onPress={() => {
+              if (currentPodcast?.collectionId) {
+                router.push(`/podcast/${currentPodcast.collectionId}`);
+              }
+            }}>
+              <Text style={styles.podcastName} numberOfLines={1}>
+                {currentPodcast.collectionName}
+              </Text>
+            </Pressable>
           </View>
 
           <View style={styles.progressContainer}>
@@ -187,10 +216,10 @@ export default function PlayerScreen() {
                 <Pause
                   color={Colors.black}
                   size={36}
-                  fill={Colors.primaryText}
+                  fill={Colors.black}
                 />
               ) : (
-                <Play color={Colors.black} size={36} fill={Colors.primaryText} />
+                <Play color={Colors.black} size={36} fill={Colors.black} />
               )}
             </Pressable>
 
@@ -204,53 +233,7 @@ export default function PlayerScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.secondaryControls}>
-            <Pressable onPress={() => toggleLike({
-              ...currentEpisode,
-              artwork: currentEpisode.artwork || currentPodcast.artworkUrl600,
-              podcastTitle: currentPodcast.collectionName,
-              artistName: currentPodcast.artistName,
-            })}>
-              <Heart
-                color={isLiked(currentEpisode.id) ? Colors.accent : Colors.primaryText}
-                size={24}
-                fill={isLiked(currentEpisode.id) ? Colors.accent : "transparent"}
-              />
-            </Pressable>
 
-            {/* Download Button */}
-            <Pressable
-              style={styles.downloadButtonPill}
-              onPress={() => {
-                if (isDownloaded(currentEpisode.id)) {
-                  deleteDownload(currentEpisode.id);
-                } else if (getDownloadProgress(currentEpisode.id) === 0) {
-                  downloadEpisode(currentEpisode, currentPodcast);
-                }
-              }}
-            >
-              {getDownloadProgress(currentEpisode.id) > 0 && getDownloadProgress(currentEpisode.id) < 100 ? (
-                <>
-                  <ActivityIndicator size="small" color={Colors.primaryText} />
-                  <Text style={styles.downloadButtonText}>Downloading</Text>
-                </>
-              ) : isDownloaded(currentEpisode.id) ? (
-                <>
-                  <Check color={Colors.accent} size={18} />
-                  <Text style={[styles.downloadButtonText, { color: Colors.accent }]}>Downloaded</Text>
-                </>
-              ) : (
-                <>
-                  <Download color={Colors.primaryText} size={18} />
-                  <Text style={styles.downloadButtonText}>Download</Text>
-                </>
-              )}
-            </Pressable>
-
-            <Pressable onPress={togglePlaybackSpeed}>
-              <Text style={styles.speedText}>{playbackRate.toFixed(1)}x</Text>
-            </Pressable>
-          </View>
 
           {currentEpisode.description && (
             <Pressable style={styles.description} onPress={toggleDescription}>
@@ -272,7 +255,116 @@ export default function PlayerScreen() {
           )}
         </ScrollView>
       </SafeAreaView>
-    </View>
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+          <View style={styles.modalOverlay} />
+        </TouchableWithoutFeedback>
+        <View style={styles.modalContent}>
+          <View style={styles.dragHandle} />
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>More Options</Text>
+            <Pressable
+              onPress={() => setMenuVisible(false)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <X color={Colors.primaryText} size={20} />
+            </Pressable>
+          </View>
+
+          {/* Sleep Timer */}
+          <View style={styles.menuSection}>
+            <View style={styles.menuLabelRow}>
+              <Clock size={16} color={Colors.secondaryText} style={{ marginRight: 6 }} />
+              <Text style={styles.menuLabel}>Sleep Timer</Text>
+              {sleepTimer && <Text style={styles.activeLabel}>{sleepTimer}m</Text>}
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              {[15, 30, 45, 60].map(min => (
+                <Pressable
+                  key={min}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    sleepTimer === min && styles.chipActive,
+                    { opacity: pressed ? 0.7 : 1 }
+                  ]}
+                  onPress={() => startSleepTimer(min)}
+                >
+                  <Text style={[styles.chipText, sleepTimer === min && styles.chipTextActive]}>{min}m</Text>
+                </Pressable>
+              ))}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.chip,
+                  !sleepTimer && styles.chipActive,
+                  { opacity: pressed ? 0.7 : 1 }
+                ]}
+                onPress={() => startSleepTimer(0)}
+              >
+                <Text style={[styles.chipText, !sleepTimer && styles.chipTextActive]}>Off</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+
+          {/* Playback Speed */}
+          <View style={styles.menuSection}>
+            <Text style={styles.menuLabel}>Playback Speed</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              {[0.5, 0.8, 1.0, 1.2, 1.5, 2.0].map(speed => (
+                <Pressable
+                  key={speed}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    playbackRate === speed && styles.chipActive,
+                    { opacity: pressed ? 0.7 : 1 }
+                  ]}
+                  onPress={() => changePlaybackRate(speed)}
+                >
+                  <Text style={[styles.chipText, playbackRate === speed && styles.chipTextActive]}>{speed}x</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Download */}
+          <View style={styles.menuSection}>
+            <Text style={styles.menuLabel}>Download</Text>
+            <Pressable
+              style={({ pressed }) => [styles.menuButton, { opacity: pressed ? 0.7 : 1 }]}
+              onPress={() => {
+                if (isDownloaded(currentEpisode.id)) {
+                  deleteDownload(currentEpisode.id);
+                } else if (getDownloadProgress(currentEpisode.id) === 0) {
+                  downloadEpisode(currentEpisode, currentPodcast);
+                }
+              }}
+            >
+              {getDownloadProgress(currentEpisode.id) > 0 && getDownloadProgress(currentEpisode.id) < 100 ? (
+                <>
+                  <ActivityIndicator size="small" color={Colors.primaryText} style={{ marginRight: 8 }} />
+                  <Text style={styles.menuButtonText}>Downloading...</Text>
+                </>
+              ) : isDownloaded(currentEpisode.id) ? (
+                <>
+                  <Check color={Colors.accent} size={16} style={{ marginRight: 8 }} />
+                  <Text style={[styles.menuButtonText, { color: Colors.accent }]}>Downloaded</Text>
+                </>
+              ) : (
+                <>
+                  <Download color={Colors.primaryText} size={16} style={{ marginRight: 8 }} />
+                  <Text style={styles.menuButtonText}>Download Episode</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </View >
   );
 }
 
@@ -372,13 +464,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  secondaryControls: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 24,
-    marginBottom: 32,
-  },
+
   speedText: {
     fontSize: 16,
     fontWeight: "600" as const,
@@ -428,5 +514,99 @@ const styles = StyleSheet.create({
     color: Colors.primaryText,
     fontSize: 14,
     fontWeight: '600',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: Colors.cardBg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.primaryText,
+  },
+  menuSection: {
+    marginBottom: 16,
+  },
+  menuLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  menuLabel: {
+    fontSize: 14,
+    color: Colors.primaryText,
+    fontWeight: '500',
+    marginBottom: 10,
+  },
+  activeLabel: {
+    fontSize: 12,
+    color: Colors.accent,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: Colors.secondaryText + '33', // Slight opacity
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  chipActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  chipText: {
+    color: Colors.primaryText,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: '#000',
+  },
+  speedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  menuButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.border,
+    padding: 12,
+    borderRadius: 12,
+    justifyContent: 'center',
+  },
+  menuButtonText: {
+    color: Colors.primaryText,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dragHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: Colors.secondaryText,
+    opacity: 0.3,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+    marginTop: 8,
   },
 });
