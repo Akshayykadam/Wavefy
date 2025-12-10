@@ -1,8 +1,18 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useAudioPlayer, AudioModule } from 'expo-audio';
+import TrackPlayer, {
+  Capability,
+  State,
+  usePlaybackState,
+  useProgress,
+  AppKilledPlaybackBehavior,
+  PitchAlgorithm,
+  useTrackPlayerEvents,
+  Event as TrackPlayerEvent,
+} from 'react-native-track-player';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Episode, Podcast } from '@/types/podcast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const STORAGE_KEYS = {
   EPISODE: 'podcat_current_episode',
@@ -11,73 +21,134 @@ const STORAGE_KEYS = {
   RATE: 'podcat_playback_rate',
 };
 
+const setupPlayer = async () => {
+  try {
+    await TrackPlayer.setupPlayer();
+    await TrackPlayer.updateOptions({
+      android: {
+        appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+      },
+      capabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SeekTo,
+        Capability.JumpForward,
+        Capability.JumpBackward,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+      ],
+      compactCapabilities: [Capability.SkipToPrevious, Capability.Play, Capability.Pause, Capability.SkipToNext],
+      progressUpdateEventInterval: 2,
+    });
+  } catch (error) {
+    // Player might be already initialized
+  }
+};
+
 export const [PlayerProvider, usePlayer] = createContextHook(() => {
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
   const [queue, setQueue] = useState<Episode[]>([]);
 
+  // Manual state tracking for reliability
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const updateState = useCallback(async () => {
+    const state = await TrackPlayer.getPlaybackState();
+    console.log('PlayerContext - Manual State Check:', state);
+    // Handle both object return (v4) and direct state
+    const actualState = (state as any).state || state;
+    setIsPlaying(actualState === State.Playing);
+    setIsLoading(actualState === State.Buffering || actualState === State.Loading);
+  }, []);
+
+  useTrackPlayerEvents([TrackPlayerEvent.PlaybackState], (event) => {
+    if (event.type === TrackPlayerEvent.PlaybackState) {
+      console.log('PlayerContext - State Change Event:', event.state);
+      setIsPlaying(event.state === State.Playing);
+      setIsLoading(event.state === State.Buffering || event.state === State.Loading);
+    }
+  });
+
+  // Check state on mount and periodically
+  useEffect(() => {
+    updateState();
+    const interval = setInterval(updateState, 1000); // Poll every second as backup
+    return () => clearInterval(interval);
+  }, [updateState]);
+
+  const progress = useProgress();
+
   const [playbackRate, setPlaybackRate] = useState(1.0);
-  const [isPlaying, setIsPlaying] = useState(false); // Now a state variable
+  const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
   const sleepTimerRef = useRef<NodeJS.Timeout | number | null>(null);
 
-  // Ref to hold the position to seek to after loading a restored episode
   const initialSeekPosition = useRef<number | null>(null);
-  // Ref to track if we have attempted to restore state
   const isRestoring = useRef(true);
   const hasUserInteracted = useRef(false);
 
-  // Initialize audio player with the current episode's URL (prefer local if available)
-  const audioSource = currentEpisode ? { uri: currentEpisode.localUri || currentEpisode.audioUrl } : null;
-  const player = useAudioPlayer(audioSource);
-
-  // Load saved state on mount
+  // Initialize Player
   useEffect(() => {
-
-    const loadState = async () => {
-      try {
-        const keys = [STORAGE_KEYS.EPISODE, STORAGE_KEYS.PODCAST, STORAGE_KEYS.POSITION, STORAGE_KEYS.RATE];
-        const result = await AsyncStorage.multiGet(keys);
-        const data = Object.fromEntries(result);
-
-        if (data[STORAGE_KEYS.RATE]) {
-          const rate = parseFloat(data[STORAGE_KEYS.RATE] || '1.0');
-          if (!isNaN(rate)) setPlaybackRate(rate);
-        }
-
-
-        // Only restore if the user hasn't already started playing something
-        if (!hasUserInteracted.current && data[STORAGE_KEYS.EPISODE] && data[STORAGE_KEYS.PODCAST]) {
-
-          const episode = JSON.parse(data[STORAGE_KEYS.EPISODE] || '{}');
-          const podcast = JSON.parse(data[STORAGE_KEYS.PODCAST] || '{}');
-
-          if (data[STORAGE_KEYS.POSITION]) {
-            const pos = parseFloat(data[STORAGE_KEYS.POSITION] || '0');
-            if (!isNaN(pos)) {
-              initialSeekPosition.current = pos;
-            }
-          }
-
-          // Set these last to trigger the player source update
-          setCurrentPodcast(podcast);
-          setCurrentEpisode(episode);
-          // Important: Don't set isPlaying to true, we want to start paused
-        } else {
-
-        }
-      } catch (e) {
-        console.warn('Failed to load player state', e);
-      } finally {
-        isRestoring.current = false;
-        isRestoring.current = false;
-      }
+    const init = async () => {
+      await setupPlayer();
+      setIsPlayerReady(true);
+      loadState();
     };
-
-    loadState();
+    init();
   }, []);
 
-  // Save Episode and Podcast metadata when they change
+  // Load Persisted State
+  const loadState = async () => {
+    try {
+      const keys = [STORAGE_KEYS.EPISODE, STORAGE_KEYS.PODCAST, STORAGE_KEYS.POSITION, STORAGE_KEYS.RATE];
+      const result = await AsyncStorage.multiGet(keys);
+      const data = Object.fromEntries(result);
+
+      if (data[STORAGE_KEYS.RATE]) {
+        const rate = parseFloat(data[STORAGE_KEYS.RATE] || '1.0');
+        if (!isNaN(rate)) setPlaybackRate(rate);
+      }
+
+      if (data[STORAGE_KEYS.EPISODE] && data[STORAGE_KEYS.PODCAST]) {
+        const episode = JSON.parse(data[STORAGE_KEYS.EPISODE] || '{}');
+        const podcast = JSON.parse(data[STORAGE_KEYS.PODCAST] || '{}');
+
+        if (data[STORAGE_KEYS.POSITION]) {
+          const pos = parseFloat(data[STORAGE_KEYS.POSITION] || '0');
+          if (!isNaN(pos)) {
+            initialSeekPosition.current = pos;
+          }
+        }
+
+        setCurrentPodcast(podcast);
+        setCurrentEpisode(episode);
+
+        // Restore track to player but don't play
+        if (episode.audioUrl) {
+          await TrackPlayer.reset();
+          await TrackPlayer.add({
+            id: String(episode.id),
+            url: episode.localUri || episode.audioUrl,
+            title: episode.title,
+            artist: podcast.collectionName,
+            artwork: episode.artwork || podcast.artworkUrl600,
+            duration: episode.duration,
+          });
+          if (initialSeekPosition.current) {
+            await TrackPlayer.seekTo(initialSeekPosition.current);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load player state', e);
+    } finally {
+      isRestoring.current = false;
+    }
+  };
+
+  // Save Persistence
   useEffect(() => {
     if (!isRestoring.current && currentEpisode && currentPodcast) {
       AsyncStorage.multiSet([
@@ -87,145 +158,119 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   }, [currentEpisode, currentPodcast]);
 
-  // Save Playback Rate when it changes
   useEffect(() => {
     AsyncStorage.setItem(STORAGE_KEYS.RATE, String(playbackRate)).catch(() => { });
-  }, [playbackRate]);
+    if (isPlayerReady) TrackPlayer.setRate(playbackRate);
+  }, [playbackRate, isPlayerReady]);
 
-  // Save Position periodically while playing
   useEffect(() => {
-    if (!isPlaying || !currentEpisode) return;
-
-    const saveInterval = setInterval(() => {
-      if (player.currentTime > 0) {
-        AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(player.currentTime)).catch(() => { });
-      }
-    }, 5000); // Save every 5 seconds
-
-    return () => clearInterval(saveInterval);
-  }, [isPlaying, currentEpisode, player.currentTime]);
-
-  // Save position on pause/unmount
-  useEffect(() => {
-    // If we are pausing or checking logic, save current time
-    if (!isPlaying && currentEpisode && player.currentTime > 0) { // Only save on pause, not on every render
-      AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(player.currentTime)).catch(() => { });
+    if (progress.position > 0 && isPlaying) {
+      AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(progress.position)).catch(() => { });
     }
-  }, [isPlaying, currentEpisode, player.currentTime]); // Added player.currentTime to dependencies
+  }, [progress.position, isPlaying]);
 
-  useEffect(() => {
-    const setupAudio = async () => {
-      try {
-        await AudioModule.setAudioModeAsync({
-          playsInSilentMode: true,
-          interruptionMode: 'doNotMix',
-          interruptionModeAndroid: 'doNotMix',
-          shouldPlayInBackground: true,
-          allowsRecording: false,
-          shouldRouteThroughEarpiece: false,
-        });
-      } catch (e) {
-        console.warn('Failed to set audio mode', e);
-      }
-    };
-    setupAudio();
-  }, []);
-
-  // Handle Player Loading and Initial Seek
-  useEffect(() => {
-    if (player.isLoaded) {
-      // Restore playback rate
-      player.setPlaybackRate(playbackRate, 'high');
-
-      // Handle initial seek if needed
-      if (initialSeekPosition.current !== null) {
-        player.seekTo(initialSeekPosition.current);
-        initialSeekPosition.current = null; // Clear it so we don't seek again
-      }
-
-      // Sync playing state
-      if (isPlaying) {
-        player.play();
-      } else {
-        player.pause();
-      }
-    }
-  }, [player.isLoaded, isPlaying, playbackRate]);
-
-  // Polling for UI updates (keep existing logic)
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    if (isPlaying) { // Only poll if playing
-      const interval = setInterval(() => setTick(t => t + 1), 500);
-      return () => clearInterval(interval);
-    }
-  }, [isPlaying]); // Depend on isPlaying
-
-  const isBuffering = player.isBuffering;
-  const isLoading = isPlaying && (isBuffering || !player.isLoaded); // Only show loading when trying to play
-
-  const rawPosition = player.currentTime;
-  const rawDuration = player.duration;
-
-  const position = (typeof rawPosition === 'number' && Number.isFinite(rawPosition)) ? rawPosition * 1000 : 0;
-  const duration = (typeof rawDuration === 'number' && Number.isFinite(rawDuration)) ? rawDuration * 1000 : 0;
 
   const playEpisode = useCallback(async (episode: Episode, podcast: Podcast) => {
+    if (!isPlayerReady) return;
 
     hasUserInteracted.current = true;
 
-    // If playing a new episode, clear the initial seek position
+    // Reset seek if new episode
     if (episode.id !== currentEpisode?.id) {
       initialSeekPosition.current = null;
-      // Reset position in storage for the new episode
       AsyncStorage.setItem(STORAGE_KEYS.POSITION, '0').catch(() => { });
     }
 
     setCurrentEpisode(episode);
     setCurrentPodcast(podcast);
-    setIsPlaying(true);
 
-    // Add to Recents logic could be moved here or kept in UI
-  }, [currentEpisode]); // Added currentEpisode to dependencies
+    await TrackPlayer.reset();
+    await TrackPlayer.add({
+      id: String(episode.id),
+      url: episode.localUri || episode.audioUrl,
+      title: episode.title,
+      artist: podcast.collectionName,
+      artwork: episode.artwork || podcast.artworkUrl600,
+    });
 
-  const togglePlayPause = useCallback(() => {
-    setIsPlaying((prev) => !prev);
+    await TrackPlayer.play();
+    await TrackPlayer.setRate(playbackRate);
+  }, [currentEpisode, isPlayerReady, playbackRate]);
+
+  const togglePlayPause = useCallback(async () => {
+    const state = await TrackPlayer.getPlaybackState();
+    const actualState = (state as any).state || state;
+
+    if (actualState === State.Playing || actualState === State.Buffering) {
+      await TrackPlayer.pause();
+      setIsPlaying(false); // Optimistic update
+    } else {
+      await TrackPlayer.play();
+      setIsPlaying(true); // Optimistic update
+    }
+    setTimeout(updateState, 500); // veriy after delay
+  }, [updateState]);
+
+  const seekTo = useCallback(async (time: number) => {
+    // PlayerContext passes milliseconds, TrackPlayer uses seconds
+    await TrackPlayer.seekTo(time / 1000);
   }, []);
 
-  const seekTo = useCallback((time: number) => {
-    player.seekTo(time / 1000);
-  }, [player]);
+  const skipForward = useCallback(async () => {
+    const current = await TrackPlayer.getProgress().then(p => p.position);
+    await TrackPlayer.seekTo(current + 10);
+  }, []);
 
-  const skipForward = useCallback(() => {
-    const currentSeconds = player.currentTime;
-    player.seekTo(currentSeconds + 10);
-  }, [player]);
+  const skipBackward = useCallback(async () => {
+    const current = await TrackPlayer.getProgress().then(p => p.position);
+    await TrackPlayer.seekTo(current - 10);
+  }, []);
 
-  const skipBackward = useCallback(() => {
-    const currentSeconds = player.currentTime;
-    player.seekTo(currentSeconds - 10);
-  }, [player]);
-
-  const changePlaybackRate = useCallback((rate: number) => {
+  const changePlaybackRate = useCallback(async (rate: number) => {
     setPlaybackRate(rate);
-    player.setPlaybackRate(rate, 'high');
-  }, [player]);
+    await TrackPlayer.setRate(rate);
+  }, []);
 
   const togglePlaybackSpeed = useCallback(() => {
     const nextRate = playbackRate === 1.0 ? 1.5 : playbackRate === 1.5 ? 2.0 : 1.0;
     setPlaybackRate(nextRate);
-    player.setPlaybackRate(nextRate, 'high');
-  }, [playbackRate, player]);
+  }, [playbackRate]);
+
+  // Sleep Timer
+  const startSleepTimer = useCallback((minutes: number) => {
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
+
+    if (minutes === 0) {
+      setSleepTimer(null);
+      return;
+    }
+
+    setSleepTimer(minutes);
+    sleepTimerRef.current = setTimeout(async () => {
+      await TrackPlayer.pause();
+      setSleepTimer(null);
+      sleepTimerRef.current = null;
+    }, minutes * 60 * 1000);
+  }, []);
+
+  const cancelSleepTimer = useCallback(() => {
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
+    sleepTimerRef.current = null;
+    setSleepTimer(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
+    };
+  }, []);
 
   const playNext = useCallback(async () => {
     if (queue.length > 0) {
       const nextEpisode = queue[0];
       setQueue(prev => prev.slice(1));
 
-      // If the episode has embedded podcast metadata (e.g. from Liked Episodes), use it
-      // otherwise fall back to the currently playing podcast context
       let podcastToUse = currentPodcast;
-
       if (nextEpisode.podcastTitle || nextEpisode.artistName) {
         podcastToUse = {
           collectionId: -1,
@@ -247,44 +292,34 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   }, [queue, currentPodcast, playEpisode]);
 
-  const playPrevious = useCallback(() => {
-    if (position > 5000) {
-      seekTo(0);
+  const playPrevious = useCallback(async () => {
+    const p = await TrackPlayer.getProgress();
+    if (p.position > 5) {
+      await TrackPlayer.seekTo(0);
     }
-  }, [position, seekTo]);
-
-  const addToQueue = useCallback((episode: Episode) => {
-    setQueue(prev => [...prev, episode]);
   }, []);
 
-  const startSleepTimer = useCallback((minutes: number) => {
-    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
-
-    if (minutes === 0) {
-      setSleepTimer(null);
-      return;
+  useTrackPlayerEvents(
+    [TrackPlayerEvent.RemoteNext, TrackPlayerEvent.RemotePrevious, TrackPlayerEvent.RemoteJumpForward, TrackPlayerEvent.RemoteJumpBackward],
+    async (event) => {
+      if (event.type === TrackPlayerEvent.RemoteNext) {
+        playNext();
+      } else if (event.type === TrackPlayerEvent.RemotePrevious) {
+        playPrevious();
+      } else if (event.type === TrackPlayerEvent.RemoteJumpForward) {
+        skipForward();
+      } else if (event.type === TrackPlayerEvent.RemoteJumpBackward) {
+        skipBackward();
+      }
     }
+  );
 
-    setSleepTimer(minutes);
-    sleepTimerRef.current = setTimeout(() => {
-      setIsPlaying(false);
-      setSleepTimer(null);
-      sleepTimerRef.current = null;
-    }, minutes * 60 * 1000);
-  }, []);
 
-  const cancelSleepTimer = useCallback(() => {
-    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
-    sleepTimerRef.current = null;
-    setSleepTimer(null);
-  }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
-    };
-  }, []);
+
+  // Provide consistent state interface
+  const position = progress.position * 1000;
+  const duration = progress.duration * 1000;
 
   return {
     currentEpisode,
@@ -302,12 +337,13 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     skipBackward,
     togglePlaybackSpeed,
     changePlaybackRate,
+    addToQueue: (ep: Episode) => setQueue(q => [...q, ep]), // Simplified
+    setQueue,
     playNext,
     playPrevious,
-    addToQueue,
-    setQueue,
     sleepTimer,
     startSleepTimer,
     cancelSleepTimer,
   };
 });
+

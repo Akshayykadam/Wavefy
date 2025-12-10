@@ -59,7 +59,10 @@ export default function MiniPlayer() {
 
         <Pressable
           style={styles.playButton}
-          onPress={() => togglePlayPause()}
+          onPress={(e) => {
+            e.stopPropagation();
+            togglePlayPause();
+          }}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           {isLoading ? (

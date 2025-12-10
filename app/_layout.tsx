@@ -8,6 +8,9 @@ import { FollowedPodcastsProvider } from "@/contexts/FollowedPodcastsContext";
 import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
 import MiniPlayer from "@/components/MiniPlayer";
 import { DownloadProvider } from "@/contexts/DownloadContext";
+import TrackPlayer from 'react-native-track-player';
+
+// Service is now registered in index.js for reliable Headless JS support
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,7 +41,10 @@ function RootLayoutNav() {
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync();
+    async function prepare() {
+      await SplashScreen.hideAsync();
+    }
+    prepare();
   }, []);
 
   return (

@@ -531,11 +531,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24, // Increased spacing
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20,  // Increased from 18
+    fontWeight: '700', // Bolder
     color: Colors.primaryText,
   },
   menuSection: {
@@ -544,28 +544,29 @@ const styles = StyleSheet.create({
   menuLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16, // Increased from 12
   },
   menuLabel: {
-    fontSize: 14,
+    fontSize: 16, // Increased from 14
     color: Colors.primaryText,
-    fontWeight: '500',
+    fontWeight: '600', // Bolder
   },
   activeLabel: {
-    fontSize: 12,
+    fontSize: 14, // Increased from 12
     color: Colors.accent,
     fontWeight: '500',
     marginLeft: 8,
   },
   chipsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 12, // Increased gap
+    flexWrap: 'wrap', // Allow wrap if needed on small screens, though usually row is fine
   },
   chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: Colors.secondaryText + '33', // Slight opacity
+    paddingHorizontal: 16, // Increased from 12
+    paddingVertical: 10,   // Increased from 6
+    borderRadius: 20,      // Increased form 16
+    backgroundColor: Colors.secondaryText + '33',
     borderWidth: 1,
     borderColor: Colors.border,
   },
@@ -575,8 +576,8 @@ const styles = StyleSheet.create({
   },
   chipText: {
     color: Colors.primaryText,
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 14, // Increased from 12
+    fontWeight: '600',
   },
   chipTextActive: {
     color: '#000',
@@ -589,14 +590,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.border,
-    padding: 12,
-    borderRadius: 12,
+    padding: 16, // Increased from 12
+    borderRadius: 16, // Increased radius
     justifyContent: 'center',
+    marginTop: 8,
   },
   menuButtonText: {
     color: Colors.primaryText,
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16, // Increased from 14
+    fontWeight: '600',
   },
   dragHandle: {
     width: 36,
