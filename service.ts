@@ -5,6 +5,13 @@ module.exports = async function () {
         console.log('Service: RemotePlay');
         TrackPlayer.play();
     });
+
+    // Handle notification tap - do nothing here since app will open naturally
+    // @ts-ignore - RemotePlayId exists in react-native-track-player
+    TrackPlayer.addEventListener(Event.RemotePlayId, (event: { id: string }) => {
+        console.log('Service: RemotePlayId', event.id);
+        // No navigation needed here - the app opens normally
+    });
     TrackPlayer.addEventListener(Event.RemotePause, () => {
         console.log('Service: RemotePause');
         TrackPlayer.pause();

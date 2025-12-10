@@ -1,14 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, usePathname, useRootNavigationState } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { PlayerProvider } from "@/contexts/PlayerContext";
+import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
 import { FollowedPodcastsProvider } from "@/contexts/FollowedPodcastsContext";
 import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
 import MiniPlayer from "@/components/MiniPlayer";
 import { DownloadProvider } from "@/contexts/DownloadContext";
 import TrackPlayer from 'react-native-track-player';
+import * as Linking from 'expo-linking';
 
 // Service is now registered in index.js for reliable Headless JS support
 
