@@ -4,15 +4,17 @@ CastBee is a modern, open-source podcast player built with **React Native** and 
 
 ## 🚀 Features
 
-*   **🎧 Full Featured Player**: Play, pause, seek, playback speed control (1x, 1.5x, 2x), and background audio support.
+*   **🎧 Full Featured Player**: Play, pause, seek, background audio support, and solid controls.
+*   **⏱️ Sleep Timer**: Fall asleep to your favorite stories with a built-in timer (15m, 30m, 45m, 60m).
+*   **⏩ Smart Playback**: Granular speed control (0.5x - 2.0x) with high-quality pitch correction (no chipmunk voices!).
 *   **⬇️ Offline Mode**: Download episodes to your device and listen without an internet connection. The app automatically prioritizes local files.
 *   **❤️ Favorites & Queue**: Like episodes to save them for later or build a custom playback queue.
 *   **🔔 Follow Podcasts**: Subscribe to your favorite shows and stay updated.
-*   **🎨 Premium UI**: Dark-mode first design with fluid animations and responsive layouts.
+*   **🎨 Premium UI**: Dark-mode first design with fluid animations, intuitive gestures, and a slick player interface.
 
 ## 🛠 Tech Stack
 
-*   **Framework**: [Expo SDK 52](https://expo.dev) + React Native
+*   **Framework**: [Expo SDK 54](https://expo.dev) + React Native
 *   **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (File-based routing)
 *   **State Management**: [Zustand](https://github.com/pmndrs/zustand)
 *   **Data Fetching**: [TanStack Query](https://tanstack.com/query/latest)

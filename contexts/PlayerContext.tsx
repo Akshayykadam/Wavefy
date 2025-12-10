@@ -258,7 +258,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   }, []);
 
   const startSleepTimer = useCallback((minutes: number) => {
-    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
 
     if (minutes === 0) {
       setSleepTimer(null);
@@ -274,9 +274,16 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   }, []);
 
   const cancelSleepTimer = useCallback(() => {
-    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
+    if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
     sleepTimerRef.current = null;
     setSleepTimer(null);
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
+    };
   }, []);
 
   return {
