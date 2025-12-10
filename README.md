@@ -1,6 +1,6 @@
-# CastBee — Where Stories Buzz 🐝
+# Wavefy 🎵
 
-CastBee is a modern, open-source podcast player built with **React Native** and **Expo**. It offers a premium listening experience with offline support, sleek UI, and robust state management.
+Wavefy is a modern, open-source podcast player built with **React Native** and **Expo**. It offers a premium listening experience with offline support, sleek UI, and robust state management.
 
 ## 🚀 Features
 
@@ -18,7 +18,7 @@ CastBee is a modern, open-source podcast player built with **React Native** and 
 *   **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (File-based routing)
 *   **State Management**: [Zustand](https://github.com/pmndrs/zustand)
 *   **Data Fetching**: [TanStack Query](https://tanstack.com/query/latest)
-*   **Audio**: `expo-audio` (New module)
+*   **Audio**: [React Native Track Player](https://github.com/doublesymmetry/react-native-track-player) (Background audio & media controls)
 *   **Persistence**: `@react-native-async-storage/async-storage` & `expo-file-system`
 *   **Styling**: React Native StyleSheet + `lucide-react-native` icons
 
@@ -34,8 +34,8 @@ CastBee is a modern, open-source podcast player built with **React Native** and 
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/yourusername/castbee.git
-    cd castbee
+    git clone https://github.com/yourusername/wavefy.git
+    cd wavefy
     ```
 
 2.  **Install dependencies:**

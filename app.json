@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "CastBee — Where Stories Buzz",
-    "slug": "castbee",
+    "name": "Wavefy",
+    "slug": "wavefy",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "castbee",
+    "scheme": "wavefy",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash-icon.png",
@@ -15,7 +15,7 @@
     "newArchEnabled": false,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.akshaykadam.castbee",
+      "bundleIdentifier": "com.akshaykadam.wavefy",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
       },
-      "package": "com.akshaykadam.castbee",
+      "package": "com.akshaykadam.wavefy",
       "permissions": [
         "RECORD_AUDIO",
         "FOREGROUND_SERVICE",
@@ -42,7 +42,7 @@
       [
         "expo-router",
         {
-          "origin": "https://castbee.app/"
+          "origin": "https://wavefy.app/"
         }
       ],
       "expo-font",
