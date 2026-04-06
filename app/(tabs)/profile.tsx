@@ -173,9 +173,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700" as const,
+    fontSize: 30,
+    fontWeight: "800" as const,
     color: Colors.primaryText,
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,

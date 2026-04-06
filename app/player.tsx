@@ -17,7 +17,7 @@ import {
   Trash2,
   GripVertical,
 } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -35,6 +35,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import Slider from "@react-native-community/slider";
 import Colors from "@/constants/colors";
 import { usePlayer } from "@/contexts/PlayerContext";
@@ -195,6 +198,18 @@ export default function PlayerScreen() {
 
   return (
     <View style={styles.container}>
+      <Image
+        source={{ uri: currentPodcast.artworkUrl600 }}
+        style={StyleSheet.absoluteFill}
+        contentFit="cover"
+        blurRadius={Platform.OS === 'android' ? 30 : 0}
+      />
+      <BlurView intensity={90} tint="dark" style={StyleSheet.absoluteFill} />
+      <LinearGradient
+        colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.7)', Colors.black]}
+        style={StyleSheet.absoluteFill}
+        locations={[0, 0.4, 0.9]}
+      />
       <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable onPress={handleBack} style={styles.headerButton}>
@@ -206,7 +221,10 @@ export default function PlayerScreen() {
           </Text>
 
           <View style={styles.headerRight}>
-            <Pressable onPress={() => setQueueVisible(true)} style={styles.headerButton}>
+            <Pressable onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setQueueVisible(true);
+            }} style={styles.headerButton}>
               <ListMusic color={Colors.primaryText} size={24} />
               {queue.length > 0 && (
                 <View style={styles.queueBadge}>
@@ -214,19 +232,25 @@ export default function PlayerScreen() {
                 </View>
               )}
             </Pressable>
-            <Pressable onPress={() => toggleLike({
-              ...currentEpisode,
-              artwork: currentEpisode.artwork || currentPodcast.artworkUrl600,
-              podcastTitle: currentPodcast.collectionName,
-              artistName: currentPodcast.artistName,
-            })} style={styles.headerButton}>
+            <Pressable onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              toggleLike({
+                ...currentEpisode,
+                artwork: currentEpisode.artwork || currentPodcast.artworkUrl600,
+                podcastTitle: currentPodcast.collectionName,
+                artistName: currentPodcast.artistName,
+              });
+            }} style={styles.headerButton}>
               <Heart
                 color={isLiked(currentEpisode.id) ? Colors.accent : Colors.primaryText}
                 size={24}
                 fill={isLiked(currentEpisode.id) ? Colors.accent : "transparent"}
               />
             </Pressable>
-            <Pressable onPress={() => setMenuVisible(true)} style={styles.headerButton}>
+            <Pressable onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setMenuVisible(true);
+            }} style={styles.headerButton}>
               <MoreVertical color={Colors.primaryText} size={24} />
             </Pressable>
           </View>
@@ -238,11 +262,13 @@ export default function PlayerScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.artworkContainer}>
-            <Image
-              source={{ uri: currentPodcast.artworkUrl600 }}
-              style={styles.artwork}
-              contentFit="cover"
-            />
+            <View style={styles.artworkShadow}>
+              <Image
+                source={{ uri: currentPodcast.artworkUrl600 }}
+                style={styles.artwork}
+                contentFit="cover"
+              />
+            </View>
           </View>
 
           <View style={styles.info}>
@@ -274,36 +300,49 @@ export default function PlayerScreen() {
           </View>
 
           <View style={styles.controls}>
-            <Pressable onPress={skipBackward}>
-              <RotateCcw color={Colors.primaryText} size={28} />
-              <Text style={styles.skipText}>10</Text>
+            <Pressable style={styles.skipButton} onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              skipBackward();
+            }}>
+              <RotateCcw color={Colors.primaryText} size={26} />
+              <Text style={styles.skipLabel}>10</Text>
             </Pressable>
 
-            <Pressable onPress={playPrevious}>
-              <SkipBack color={Colors.primaryText} size={36} />
+            <Pressable onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              playPrevious();
+            }}>
+              <SkipBack color={Colors.primaryText} size={32} fill={Colors.primaryText} />
             </Pressable>
 
-            <Pressable style={styles.playButton} onPress={togglePlayPause}>
-              {isLoading ? (
-                <ActivityIndicator size="large" color={Colors.black} />
-              ) : isPlaying ? (
-                <Pause
-                  color={Colors.black}
-                  size={36}
-                  fill={Colors.black}
-                />
-              ) : (
-                <Play color={Colors.black} size={36} fill={Colors.black} />
-              )}
+            <View style={styles.playButtonOuter}>
+              <Pressable style={styles.playButton} onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                togglePlayPause();
+              }}>
+                {isLoading ? (
+                  <ActivityIndicator size="large" color={Colors.black} />
+                ) : isPlaying ? (
+                  <Pause color={Colors.black} size={32} fill={Colors.black} />
+                ) : (
+                  <Play color={Colors.black} size={32} fill={Colors.black} style={{ marginLeft: 3 }} />
+                )}
+              </Pressable>
+            </View>
+
+            <Pressable onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              playNext();
+            }}>
+              <SkipForward color={Colors.primaryText} size={32} fill={Colors.primaryText} />
             </Pressable>
 
-            <Pressable onPress={playNext}>
-              <SkipForward color={Colors.primaryText} size={36} />
-            </Pressable>
-
-            <Pressable onPress={skipForward}>
-              <RotateCw color={Colors.primaryText} size={28} />
-              <Text style={styles.skipText}>10</Text>
+            <Pressable style={styles.skipButton} onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              skipForward();
+            }}>
+              <RotateCw color={Colors.primaryText} size={26} />
+              <Text style={styles.skipLabel}>10</Text>
             </Pressable>
           </View>
 
@@ -677,14 +716,21 @@ const styles = StyleSheet.create({
   },
   artworkContainer: {
     alignItems: "center",
-    marginTop: 32,
-    marginBottom: 40,
+    marginTop: 24,
+    marginBottom: 32,
+  },
+  artworkShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.6,
+    shadowRadius: 40,
+    elevation: 24,
   },
   artwork: {
     width: width - 80,
     height: width - 80,
-    borderRadius: 16,
-    backgroundColor: Colors.cardBg,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
   },
   info: {
     marginBottom: 40,
@@ -695,11 +741,13 @@ const styles = StyleSheet.create({
     color: Colors.primaryText,
     textAlign: "center",
     marginBottom: 8,
+    letterSpacing: -0.3,
   },
   podcastName: {
     fontSize: 16,
-    color: Colors.secondaryText,
+    color: Colors.accent,
     textAlign: "center",
+    fontWeight: '500',
   },
   progressContainer: {
     marginBottom: 24,
@@ -721,8 +769,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     marginBottom: 32,
+  },
+  skipButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  skipLabel: {
+    position: 'absolute',
+    fontSize: 9,
+    fontWeight: '800',
+    color: Colors.primaryText,
+    textAlign: 'center',
+  },
+  playButtonOuter: {
+    shadowColor: Colors.primaryText,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
   },
   playButton: {
     width: 72,
@@ -804,17 +872,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   skipText: {
-    position: 'absolute',
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: Colors.primaryText,
-    top: 9,
-    left: 9,
+    display: 'none',
   },
   downloadButtonPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.cardBg,
+    backgroundColor: Colors.surface,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 24,
@@ -881,11 +944,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    backgroundColor: Colors.cardBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: 20,
-    paddingBottom: 32,
+    paddingBottom: 40,
+    borderWidth: 1,
+    borderColor: Colors.whiteAlpha10,
+    borderBottomWidth: 0,
   },
   queueModalContent: {
     maxHeight: '80%',
@@ -979,14 +1045,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   dragHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: Colors.secondaryText,
-    opacity: 0.3,
-    borderRadius: 2,
+    width: 40,
+    height: 5,
+    backgroundColor: Colors.whiteAlpha20,
+    borderRadius: 3,
     alignSelf: 'center',
     marginBottom: 16,
-    marginTop: 8,
+    marginTop: 10,
   },
 
   // Queue styles
@@ -1007,7 +1072,7 @@ const styles = StyleSheet.create({
   nowPlayingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.border,
+    backgroundColor: Colors.surfaceLight,
     borderRadius: 12,
     padding: 12,
     gap: 12,
@@ -1016,7 +1081,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 8,
-    backgroundColor: Colors.cardBg,
+    backgroundColor: Colors.surface,
   },
   nowPlayingInfo: {
     flex: 1,
@@ -1071,7 +1136,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 6,
-    backgroundColor: Colors.cardBg,
+    backgroundColor: Colors.surface,
   },
   queueItemInfo: {
     flex: 1,

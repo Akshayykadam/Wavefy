@@ -5,33 +5,36 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Pressable,
   ActivityIndicator,
+  Animated,
+  Dimensions,
+  Platform,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import Colors from "@/constants/colors";
 import { Podcast, Episode } from "@/types/podcast";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useFollowedPodcasts } from "@/contexts/FollowedPodcastsContext";
 import { useDownloads } from "@/contexts/DownloadContext";
+import SkeletonLoader from "@/components/SkeletonLoader";
 
+const { width } = Dimensions.get("window");
 
 const parseRSS = async (url: string): Promise<Episode[]> => {
   try {
     const response = await fetch(url);
     const text = await response.text();
-
     const episodes: Episode[] = [];
     const itemMatches = text.match(/<item[^>]*>([\s\S]*?)<\/item>/gi);
-
     if (!itemMatches) return [];
-
     for (let i = 0; i < Math.min(itemMatches.length, 20); i++) {
       const item = itemMatches[i];
-
       const titleMatch = item.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
       const contentMatch = item.match(/<content:encoded[^>]*>([\s\S]*?)<\/content:encoded>/i);
       const descMatch = item.match(/<description[^>]*>([\s\S]*?)<\/description>/i) || item.match(/<itunes:summary[^>]*>([\s\S]*?)<\/itunes:summary>/i);
@@ -39,42 +42,18 @@ const parseRSS = async (url: string): Promise<Episode[]> => {
       const pubDateMatch = item.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i);
       const durationMatch = item.match(/<itunes:duration[^>]*>([\s\S]*?)<\/itunes:duration>/i);
       const guidMatch = item.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i);
-
       const title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : "Unknown Episode";
-
-      // Prefer content:encoded, then description, then itunes:summary
       let rawDescription = "";
-      if (contentMatch) {
-        rawDescription = contentMatch[1];
-      } else if (descMatch) {
-        rawDescription = descMatch[1] || descMatch[2] || "";
-      }
-
-      // Remove CDATA, HTML tags, and extra whitespace
-      const description = rawDescription
-        .replace(/<!\[CDATA\[/g, "")
-        .replace(/\]\]>/g, "")
-        .replace(/<[^>]*>/g, "")
-        .trim();
-
+      if (contentMatch) rawDescription = contentMatch[1];
+      else if (descMatch) rawDescription = descMatch[1] || descMatch[2] || "";
+      const description = rawDescription.replace(/<!\[CDATA\[/g, "").replace(/\]\]>/g, "").replace(/<[^>]*>/g, "").trim();
       const audioUrl = enclosureMatch ? enclosureMatch[1] : "";
       const pubDate = pubDateMatch ? pubDateMatch[1].trim() : "";
       const durationText = durationMatch ? durationMatch[1].trim() : "0";
       const guid = guidMatch ? guidMatch[1].replace(/<[^>]*>/g, "").trim() : "";
-
       const duration = parseDuration(durationText);
-
-      episodes.push({
-        id: guid || audioUrl || `episode-${i}`,
-        title,
-        description,
-        audioUrl,
-        pubDate,
-        duration,
-        artwork: "",
-      });
+      episodes.push({ id: guid || audioUrl || `episode-${i}`, title, description, audioUrl, pubDate, duration, artwork: "" });
     }
-
     return episodes;
   } catch (error) {
     console.error("Error parsing RSS:", error);
@@ -84,26 +63,21 @@ const parseRSS = async (url: string): Promise<Episode[]> => {
 
 const parseDuration = (duration: string): number => {
   const parts = duration.split(":");
-  if (parts.length === 3) {
-    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
-  } else if (parts.length === 2) {
-    return parseInt(parts[0]) * 60 + parseInt(parts[1]);
-  }
+  if (parts.length === 3) return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + parseInt(parts[2]);
+  if (parts.length === 2) return parseInt(parts[0]) * 60 + parseInt(parts[1]);
   return parseInt(duration) || 0;
 };
 
 const formatDuration = (seconds: number): string => {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
-  if (hrs > 0) {
-    return `${hrs}h ${mins}m`;
-  }
-  return `${mins}m`;
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  return `${mins} min`;
 };
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
 export default function PodcastDetailScreen() {
@@ -112,13 +86,12 @@ export default function PodcastDetailScreen() {
   const { playEpisode, currentEpisode, isPlaying, togglePlayPause, setPodcastEpisodes } = usePlayer();
   const { isFollowing, toggleFollow } = useFollowedPodcasts();
   const { downloadEpisode, isDownloaded, getDownloadProgress } = useDownloads();
+  const scrollY = React.useRef(new Animated.Value(0)).current;
 
   const { data: podcast, isLoading } = useQuery({
     queryKey: ["podcast", id],
     queryFn: async () => {
-      const response = await fetch(
-        `https://itunes.apple.com/lookup?id=${id}`
-      );
+      const response = await fetch(`https://itunes.apple.com/lookup?id=${id}`);
       const data = await response.json();
       return data.results[0] as Podcast;
     },
@@ -130,17 +103,39 @@ export default function PodcastDetailScreen() {
     enabled: !!podcast?.feedUrl,
   });
 
-  // Update podcast episodes in PlayerContext for continuation logic
   React.useEffect(() => {
-    if (episodes.length > 0) {
-      setPodcastEpisodes(episodes);
-    }
+    if (episodes.length > 0) setPodcastEpisodes(episodes);
   }, [episodes, setPodcastEpisodes]);
 
+  // Full page skeleton
   if (isLoading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.accent} />
+      <View style={styles.container}>
+        <SafeAreaView edges={["top"]} style={styles.safeArea}>
+          <View style={styles.header}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <ArrowLeft color={Colors.primaryText} size={24} />
+            </Pressable>
+          </View>
+          <View style={{ alignItems: 'center', marginTop: 24 }}>
+            <SkeletonLoader style={{ width: 200, height: 200, borderRadius: 16 }} />
+            <SkeletonLoader style={{ width: 180, height: 24, borderRadius: 6, marginTop: 24 }} />
+            <SkeletonLoader style={{ width: 120, height: 16, borderRadius: 4, marginTop: 10 }} />
+            <SkeletonLoader style={{ width: 140, height: 44, borderRadius: 22, marginTop: 20 }} />
+          </View>
+          <View style={{ paddingHorizontal: 20, marginTop: 32 }}>
+            <SkeletonLoader style={{ width: 80, height: 20, borderRadius: 4, marginBottom: 16 }} />
+            {[1, 2, 3, 4].map((i) => (
+              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
+                <SkeletonLoader style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                <View style={{ flex: 1 }}>
+                  <SkeletonLoader style={{ height: 16, width: '85%', borderRadius: 4, marginBottom: 6 }} />
+                  <SkeletonLoader style={{ height: 12, width: '55%', borderRadius: 4 }} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </SafeAreaView>
       </View>
     );
   }
@@ -153,30 +148,71 @@ export default function PodcastDetailScreen() {
     );
   }
 
+  const latestEpisode = episodes.length > 0 ? episodes[0] : null;
+  const isLatestPlaying = latestEpisode && currentEpisode?.id === latestEpisode.id && isPlaying;
+
   return (
     <View style={styles.container}>
+      {/* Immersive backdrop */}
+      <Image
+        source={{ uri: podcast.artworkUrl600 }}
+        style={[StyleSheet.absoluteFill, { height: 360 }]}
+        contentFit="cover"
+        blurRadius={Platform.OS === 'android' ? 25 : 0}
+      />
+      <BlurView intensity={Platform.OS === 'ios' ? 80 : 0} tint="dark" style={[StyleSheet.absoluteFill, { height: 360 }]} />
+      <LinearGradient
+        colors={['rgba(0,0,0,0.2)', 'rgba(0,0,0,0.6)', Colors.black]}
+        style={[StyleSheet.absoluteFill, { height: 360 }]}
+        locations={[0, 0.5, 1]}
+      />
+
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <View style={styles.header}>
           <Pressable
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.back();
+            }}
           >
             <ArrowLeft color={Colors.primaryText} size={24} />
           </Pressable>
         </View>
 
-        <ScrollView
+        <Animated.ScrollView
           style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
         >
-          <View style={styles.artworkContainer}>
-            <Image
-              source={{ uri: podcast.artworkUrl600 }}
-              style={styles.artwork}
-              contentFit="cover"
-            />
-          </View>
+          <Animated.View style={[styles.artworkContainer, {
+            transform: [{
+              translateY: scrollY.interpolate({
+                inputRange: [-100, 0, 100],
+                outputRange: [-50, 0, 0],
+                extrapolate: 'clamp'
+              })
+            }, {
+              scale: scrollY.interpolate({
+                inputRange: [-100, 0, 100],
+                outputRange: [1.2, 1, 1],
+                extrapolate: 'clamp'
+              })
+            }]
+          }]}>
+            <View style={styles.artworkShadow}>
+              <Image
+                source={{ uri: podcast.artworkUrl600 }}
+                style={styles.artwork}
+                contentFit="cover"
+              />
+            </View>
+          </Animated.View>
 
           <Text style={styles.podcastName}>{podcast.collectionName}</Text>
           <Text style={styles.artistName}>{podcast.artistName}</Text>
@@ -187,11 +223,14 @@ export default function PodcastDetailScreen() {
                 styles.followButton,
                 isFollowing(podcast.collectionId) && styles.followButtonActive
               ]}
-              onPress={() => toggleFollow(podcast)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                toggleFollow(podcast);
+              }}
             >
               <Heart
                 color={isFollowing(podcast.collectionId) ? Colors.accent : Colors.primaryText}
-                size={20}
+                size={18}
                 fill={isFollowing(podcast.collectionId) ? Colors.accent : "transparent"}
               />
               <Text style={[
@@ -201,16 +240,48 @@ export default function PodcastDetailScreen() {
                 {isFollowing(podcast.collectionId) ? "Following" : "Follow"}
               </Text>
             </Pressable>
-
-
           </View>
 
+          {/* Play Latest CTA */}
+          {latestEpisode && (
+            <Pressable
+              style={({ pressed }) => [styles.playLatestButton, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                if (isLatestPlaying) {
+                  togglePlayPause();
+                } else {
+                  playEpisode(latestEpisode, podcast);
+                }
+              }}
+            >
+              {isLatestPlaying ? (
+                <Pause color="#fff" size={20} fill="#fff" />
+              ) : (
+                <Play color="#fff" size={20} fill="#fff" />
+              )}
+              <Text style={styles.playLatestText}>
+                {isLatestPlaying ? "Pause" : "Play Latest Episode"}
+              </Text>
+            </Pressable>
+          )}
+
           <View style={styles.episodesSection}>
-            <Text style={styles.sectionTitle}>Episodes</Text>
+            <Text style={styles.sectionTitle}>
+              Episodes{episodes.length > 0 ? ` (${episodes.length})` : ''}
+            </Text>
 
             {isEpisodesLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={Colors.accent} />
+              <View>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, width: '100%' }}>
+                    <SkeletonLoader style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                    <View style={{ flex: 1 }}>
+                      <SkeletonLoader style={{ height: 16, width: '80%', marginBottom: 6 }} />
+                      <SkeletonLoader style={{ height: 12, width: '55%' }} />
+                    </View>
+                  </View>
+                ))}
               </View>
             ) : episodes.length === 0 ? (
               <Text style={styles.noEpisodes}>No episodes available</Text>
@@ -222,258 +293,131 @@ export default function PodcastDetailScreen() {
                 const progress = getDownloadProgress(episode.id);
                 const isDownloading = progress > 0 && progress < 100;
 
-                const handlePress = () => {
-
-                  if (isCurrentEpisode) {
-
-                    togglePlayPause();
-                  } else {
-
-                    playEpisode(episode, podcast);
-                  }
-                };
-
-                const handleDownload = () => {
-                  if (!downloaded && !isDownloading) {
-                    downloadEpisode(episode, podcast);
-                  }
-                };
-
                 return (
-                  <View key={episode.id} style={styles.episodeRow}>
-                    <Pressable
-                      style={styles.episodeItem}
-                      onPress={handlePress}
-                    >
-                      <View style={styles.episodeLeft}>
-                        <View style={styles.playIconContainer}>
-                          {isThisPlaying ? (
-                            <Pause
-                              color={Colors.accent}
-                              size={16}
-                              fill={Colors.accent}
-                            />
-                          ) : (
-                            <Play
-                              color={Colors.accent}
-                              size={16}
-                              fill={Colors.accent}
-                            />
-                          )}
-                        </View>
-                        <View style={styles.episodeInfo}>
-                          <Text style={styles.episodeTitle} numberOfLines={2}>
-                            {episode.title}
+                  <Pressable
+                    key={episode.id}
+                    style={({ pressed }) => [styles.episodeRow, pressed && { backgroundColor: Colors.surface }]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      if (isCurrentEpisode) togglePlayPause();
+                      else playEpisode(episode, podcast);
+                    }}
+                  >
+                    <View style={styles.episodeLeft}>
+                      <View style={[styles.playIconContainer, isThisPlaying && styles.playIconActive]}>
+                        {isThisPlaying ? (
+                          <Pause color={Colors.accent} size={14} fill={Colors.accent} />
+                        ) : (
+                          <Play color={Colors.accent} size={14} fill={Colors.accent} />
+                        )}
+                      </View>
+                      <View style={styles.episodeInfo}>
+                        <Text style={[styles.episodeTitle, isCurrentEpisode && { color: Colors.accent }]} numberOfLines={2}>
+                          {episode.title}
+                        </Text>
+                        <View style={styles.episodeMeta}>
+                          <Text style={styles.episodeMetaText}>
+                            {formatDate(episode.pubDate)}
                           </Text>
-                          <Text style={styles.episodeDescription} numberOfLines={2}>
-                            {episode.description}
+                          <Text style={styles.episodeMetaText}> · </Text>
+                          <Text style={styles.episodeMetaText}>
+                            {formatDuration(episode.duration)}
                           </Text>
-                          <View style={styles.episodeMeta}>
-                            <Text style={styles.episodeMetaText}>
-                              {formatDate(episode.pubDate)}
-                            </Text>
-                            <Text style={styles.episodeMetaText}> • </Text>
-                            <Text style={styles.episodeMetaText}>
-                              {formatDuration(episode.duration)}
-                            </Text>
-                          </View>
                         </View>
                       </View>
-                    </Pressable>
-
+                    </View>
                     <Pressable
-                      style={[styles.downloadButton, (downloaded || isDownloading) && styles.downloadButtonDisabled]}
-                      onPress={handleDownload}
+                      style={styles.downloadButton}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        if (!downloaded && !isDownloading) downloadEpisode(episode, podcast);
+                      }}
                       disabled={downloaded || isDownloading}
                     >
                       {isDownloading ? (
                         <ActivityIndicator size="small" color={Colors.secondaryText} />
                       ) : downloaded ? (
-                        <Check size={20} color={Colors.accent} />
+                        <Check size={18} color={Colors.accent} />
                       ) : (
-                        <Download size={20} color={Colors.secondaryText} />
+                        <Download size={18} color={Colors.secondaryText} />
                       )}
                     </Pressable>
-                  </View>
+                  </Pressable>
                 );
               })
             )}
           </View>
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.black,
+  container: { flex: 1, backgroundColor: Colors.black },
+  safeArea: { flex: 1 },
+  loading: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.black },
+  errorText: { color: Colors.primaryText, fontSize: 16 },
+  header: { paddingHorizontal: 16, paddingVertical: 8 },
+  backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.whiteAlpha10, justifyContent: "center", alignItems: 'center' },
+  content: { flex: 1 },
+  scrollContent: { paddingBottom: 120 },
+  artworkContainer: { alignItems: "center", marginTop: 8 },
+  artworkShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.6,
+    shadowRadius: 32,
+    elevation: 20,
   },
-  safeArea: {
-    flex: 1,
-  },
-  loading: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.black,
-  },
-  errorText: {
-    color: Colors.primaryText,
-    fontSize: 16,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
-  artworkContainer: {
-    alignItems: "center",
-    marginTop: 16,
-  },
-  artwork: {
-    width: 240,
-    height: 240,
-    borderRadius: 12,
-    backgroundColor: Colors.cardBg,
-  },
+  artwork: { width: 220, height: 220, borderRadius: 16, backgroundColor: Colors.surface },
   podcastName: {
-    fontSize: 24,
-    fontWeight: "700" as const,
-    color: Colors.primaryText,
-    textAlign: "center",
-    marginTop: 24,
-    paddingHorizontal: 32,
+    fontSize: 22, fontWeight: "700" as const, color: Colors.primaryText,
+    textAlign: "center", marginTop: 20, paddingHorizontal: 32, letterSpacing: -0.3,
   },
-  artistName: {
-    fontSize: 16,
-    color: Colors.secondaryText,
-    textAlign: "center",
-    marginTop: 8,
-  },
+  artistName: { fontSize: 15, color: Colors.secondaryText, textAlign: "center", marginTop: 6 },
   actions: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 24,
-    gap: 12,
-    paddingHorizontal: 32,
+    flexDirection: "row", justifyContent: "center", alignItems: "center",
+    marginTop: 20, gap: 12, paddingHorizontal: 32,
   },
   followButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.cardBg,
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    flexDirection: "row", alignItems: "center", backgroundColor: Colors.surface,
+    paddingHorizontal: 28, paddingVertical: 11, borderRadius: 24, gap: 8,
+    borderWidth: 1, borderColor: Colors.whiteAlpha10,
   },
-  followButtonActive: {
-    borderColor: Colors.accent,
-    backgroundColor: 'rgba(255, 76, 76, 0.1)', // Light accent color background
+  followButtonActive: { borderColor: Colors.accent, backgroundColor: Colors.accentGlow },
+  followButtonText: { color: Colors.primaryText, fontSize: 15, fontWeight: "600" as const },
+  followButtonTextActive: { color: Colors.accent },
+  playLatestButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.accent, borderRadius: 28, marginHorizontal: 32,
+    marginTop: 16, paddingVertical: 14, gap: 10,
+    shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
   },
-  followButtonText: {
-    color: Colors.primaryText,
-    fontSize: 16,
-    fontWeight: "600" as const,
-  },
-  followButtonTextActive: {
-    color: Colors.accent,
-  },
-  iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.cardBg,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  episodesSection: {
-    marginTop: 32,
-    paddingHorizontal: 16,
-  },
+  playLatestText: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
+  episodesSection: { marginTop: 28, paddingHorizontal: 20 },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "700" as const,
-    color: Colors.primaryText,
-    marginBottom: 16,
+    fontSize: 18, fontWeight: "700" as const, color: Colors.primaryText,
+    marginBottom: 16, letterSpacing: -0.3,
   },
-  noEpisodes: {
-    color: Colors.secondaryText,
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: 32,
-  },
+  noEpisodes: { color: Colors.secondaryText, fontSize: 14, textAlign: "center", marginTop: 32 },
   episodeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    paddingRight: 8,
+    flexDirection: "row", alignItems: "center", paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border,
   },
-  episodeItem: {
-    flex: 1,
-    paddingVertical: 12,
-  },
-  episodeLeft: {
-    flexDirection: "row",
-    flex: 1,
-    gap: 12,
-  },
+  episodeLeft: { flexDirection: "row", flex: 1, gap: 12, alignItems: 'center' },
   playIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.cardBg,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: Colors.accentGlow, justifyContent: "center", alignItems: "center",
   },
-  episodeInfo: {
-    flex: 1,
-  },
+  playIconActive: { backgroundColor: Colors.accent },
+  episodeInfo: { flex: 1 },
   episodeTitle: {
-    fontSize: 16,
-    fontWeight: "600" as const,
-    color: Colors.primaryText,
-    marginBottom: 4,
+    fontSize: 15, fontWeight: "600" as const, color: Colors.primaryText,
+    marginBottom: 4, letterSpacing: -0.2,
   },
-  episodeDescription: {
-    fontSize: 13,
-    color: Colors.secondaryText,
-    marginBottom: 6,
-  },
-  episodeMeta: {
-    flexDirection: "row",
-  },
-  episodeMetaText: {
-    fontSize: 12,
-    color: Colors.secondaryText,
-  },
-  loadingContainer: {
-    padding: 32,
-    alignItems: "center",
-  },
-  downloadButton: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  downloadButtonDisabled: {
-    opacity: 0.6,
-  },
+  episodeMeta: { flexDirection: "row" },
+  episodeMetaText: { fontSize: 12, color: Colors.secondaryText },
+  downloadButton: { padding: 8, justifyContent: 'center', alignItems: 'center' },
 });

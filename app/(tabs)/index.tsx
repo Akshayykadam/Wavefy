@@ -11,8 +11,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { Podcast } from "@/types/podcast";
+import { usePlayer } from "@/contexts/PlayerContext";
+import HeroCarousel from "@/components/HeroCarousel";
+import SkeletonLoader from "@/components/SkeletonLoader";
+import ContinueListeningCard from "@/components/ContinueListeningCard";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.42;
@@ -20,7 +25,6 @@ const CARD_WIDTH = width * 0.42;
 const fetchFeaturedPodcasts = async (): Promise<Podcast[]> => {
   const genres = ["Technology", "Comedy", "News", "True Crime", "Business"];
   const randomGenre = genres[Math.floor(Math.random() * genres.length)];
-
   const response = await fetch(
     `https://itunes.apple.com/search?term=${randomGenre}&media=podcast&limit=10`
   );
@@ -38,47 +42,52 @@ const fetchPodcastsByCategory = async (category: string): Promise<Podcast[]> => 
 
 const getGreeting = (): string => {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning";
+  if (hour < 12) return "Good Morning ☀️";
   if (hour < 18) return "Good Afternoon";
-  return "Good Evening";
+  return "Good Evening 🌙";
 };
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { getHalfPlayedEpisodes, playEpisode } = usePlayer();
 
-  const { data: featured = [] } = useQuery({
+  const halfPlayed = getHalfPlayedEpisodes();
+
+  const { data: featured = [], isLoading: featuredLoading } = useQuery({
     queryKey: ["featured"],
     queryFn: fetchFeaturedPodcasts,
   });
 
-  const { data: technology = [] } = useQuery({
+  const { data: technology = [], isLoading: techLoading } = useQuery({
     queryKey: ["technology"],
     queryFn: () => fetchPodcastsByCategory("Technology"),
   });
 
-  const { data: comedy = [] } = useQuery({
+  const { data: comedy = [], isLoading: comedyLoading } = useQuery({
     queryKey: ["comedy"],
     queryFn: () => fetchPodcastsByCategory("Comedy"),
   });
 
-  const { data: trueCrime = [] } = useQuery({
+  const { data: trueCrime = [], isLoading: trueCrimeLoading } = useQuery({
     queryKey: ["true-crime"],
     queryFn: () => fetchPodcastsByCategory("True Crime"),
   });
 
-  const renderPodcastCard = (podcast: Podcast, large?: boolean) => (
+  const renderPodcastCard = (podcast: Podcast) => (
     <Pressable
       key={podcast.collectionId}
       style={({ pressed }) => [
         styles.card,
-        large && styles.cardLarge,
         pressed && styles.cardPressed,
       ]}
-      onPress={() => router.push(`/podcast/${podcast.collectionId}` as any)}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push(`/podcast/${podcast.collectionId}` as any);
+      }}
     >
       <Image
         source={{ uri: podcast.artworkUrl600 }}
-        style={[styles.artwork, large && styles.artworkLarge]}
+        style={styles.artwork}
         contentFit="cover"
       />
       <Text style={styles.podcastName} numberOfLines={2}>
@@ -88,6 +97,41 @@ export default function HomeScreen() {
         {podcast.artistName}
       </Text>
     </Pressable>
+  );
+
+  const renderSkeletonRow = () => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
+      {[1, 2, 3].map((i) => (
+        <View key={i} style={{ width: CARD_WIDTH, marginRight: 12 }}>
+          <SkeletonLoader style={{ width: CARD_WIDTH, height: CARD_WIDTH, borderRadius: 12 }} />
+          <SkeletonLoader style={{ width: CARD_WIDTH * 0.8, height: 14, borderRadius: 4, marginTop: 8 }} />
+          <SkeletonLoader style={{ width: CARD_WIDTH * 0.5, height: 12, borderRadius: 4, marginTop: 4 }} />
+        </View>
+      ))}
+    </ScrollView>
+  );
+
+  const renderCategorySection = (
+    title: string,
+    data: Podcast[],
+    loading: boolean,
+  ) => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {loading ? (
+        renderSkeletonRow()
+      ) : data.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalScroll}
+          snapToInterval={CARD_WIDTH + 12}
+          decelerationRate="fast"
+        >
+          {data.map((podcast) => renderPodcastCard(podcast))}
+        </ScrollView>
+      ) : null}
+    </View>
   );
 
   return (
@@ -102,57 +146,71 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {featured.length > 0 && (
+          {/* Continue Listening */}
+          {halfPlayed.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Continue Listening</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+              >
+                {halfPlayed.slice(0, 8).map((ep, index) => (
+                  <ContinueListeningCard
+                    key={`continue-${ep.episodeId}-${index}`}
+                    episodeTitle={ep.episodeTitle || 'Untitled'}
+                    podcastTitle={ep.podcastTitle || ''}
+                    artwork={ep.podcastArtwork || ep.episodeArtwork || ''}
+                    progress={ep.duration > 0 ? ep.position / ep.duration : 0}
+                    onPress={() => {
+                      playEpisode(
+                        {
+                          id: ep.episodeId,
+                          title: ep.episodeTitle || 'Untitled',
+                          description: '',
+                          audioUrl: ep.audioUrl || '',
+                          pubDate: '',
+                          duration: ep.duration,
+                          artwork: ep.episodeArtwork || ep.podcastArtwork || '',
+                          podcastTitle: ep.podcastTitle,
+                        },
+                        {
+                          collectionId: -1,
+                          collectionName: ep.podcastTitle || '',
+                          artistName: '',
+                          artworkUrl600: ep.podcastArtwork || '',
+                          artworkUrl100: ep.podcastArtwork || '',
+                          feedUrl: '',
+                          trackCount: 0,
+                          releaseDate: '',
+                          primaryGenreName: '',
+                          collectionViewUrl: '',
+                        }
+                      );
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Featured */}
+          {featuredLoading ? (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Featured Today</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-              >
-                {featured.map((podcast) => renderPodcastCard(podcast, true))}
-              </ScrollView>
+              <SkeletonLoader style={{ width: width - 32, height: width * 0.65, marginHorizontal: 16, borderRadius: 20 }} />
             </View>
-          )}
-
-          {technology.length > 0 && (
+          ) : featured.length > 0 ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Technology</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-              >
-                {technology.map((podcast) => renderPodcastCard(podcast))}
-              </ScrollView>
+              <Text style={styles.sectionTitle}>Featured Today</Text>
+              <HeroCarousel podcasts={featured} />
             </View>
-          )}
+          ) : null}
 
-          {comedy.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Comedy</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-              >
-                {comedy.map((podcast) => renderPodcastCard(podcast))}
-              </ScrollView>
-            </View>
-          )}
-
-          {trueCrime.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>True Crime</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-              >
-                {trueCrime.map((podcast) => renderPodcastCard(podcast))}
-              </ScrollView>
-            </View>
-          )}
+          {/* Category sections */}
+          {renderCategorySection("Technology", technology, techLoading)}
+          {renderCategorySection("Comedy", comedy, comedyLoading)}
+          {renderCategorySection("True Crime", trueCrime, trueCrimeLoading)}
 
           <View style={styles.bottomPadding} />
         </ScrollView>
@@ -170,14 +228,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   title: {
-    fontSize: 28,
-    fontWeight: "700" as const,
+    fontSize: 30,
+    fontWeight: "800" as const,
     color: Colors.primaryText,
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
@@ -186,40 +245,35 @@ const styles = StyleSheet.create({
     paddingBottom: 150,
   },
   section: {
-    marginTop: 24,
+    marginTop: 28,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700" as const,
     color: Colors.primaryText,
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingHorizontal: 20,
+    marginBottom: 14,
+    letterSpacing: -0.3,
   },
   horizontalScroll: {
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: 20,
   },
   card: {
     width: CARD_WIDTH,
-  },
-  cardLarge: {
-    width: width * 0.58,
+    marginRight: 12,
   },
   artwork: {
     width: CARD_WIDTH,
     height: CARD_WIDTH,
-    borderRadius: 8,
-    backgroundColor: Colors.cardBg,
-  },
-  artworkLarge: {
-    width: width * 0.58,
-    height: width * 0.58,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
   },
   podcastName: {
     fontSize: 14,
     fontWeight: "600" as const,
     color: Colors.primaryText,
     marginTop: 8,
+    letterSpacing: -0.2,
   },
   artistName: {
     fontSize: 12,
@@ -231,5 +285,6 @@ const styles = StyleSheet.create({
   },
   cardPressed: {
     opacity: 0.7,
+    transform: [{ scale: 0.97 }],
   },
 });
