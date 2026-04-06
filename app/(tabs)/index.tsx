@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import { Bell } from "lucide-react-native";
 import React from "react";
 import {
   View,
@@ -18,6 +19,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import HeroCarousel from "@/components/HeroCarousel";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import ContinueListeningCard from "@/components/ContinueListeningCard";
+import { useNotifications } from "@/contexts/NotificationContext";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.42;
@@ -52,6 +54,7 @@ export default function HomeScreen() {
   const { getHalfPlayedEpisodes, playEpisode } = usePlayer();
 
   const halfPlayed = getHalfPlayedEpisodes();
+  const { unreadCount } = useNotifications();
 
   const { data: featured = [], isLoading: featuredLoading } = useQuery({
     queryKey: ["featured"],
@@ -139,6 +142,19 @@ export default function HomeScreen() {
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <View style={styles.header}>
           <Text style={styles.title}>{getGreeting()}</Text>
+          <Pressable
+            onPress={() => {
+              router.push('/notifications' as any);
+            }}
+            style={styles.bellButton}
+          >
+            <Bell color={Colors.primaryText} size={22} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </Pressable>
         </View>
 
         <ScrollView
@@ -231,12 +247,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 30,
     fontWeight: "800" as const,
     color: Colors.primaryText,
     letterSpacing: -0.5,
+    flex: 1,
+  },
+  bellButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.whiteAlpha10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  bellBadgeText: {
+    fontSize: 9,
+    fontWeight: '800' as const,
+    color: '#fff',
   },
   content: {
     flex: 1,

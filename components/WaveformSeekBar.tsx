@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useRef } from 'react';
-import { View, StyleSheet, Dimensions, PanResponder, GestureResponderEvent, PanResponderGestureState } from 'react-native';
+import React, { useState, useRef, useMemo } from 'react';
+import { View, StyleSheet, Dimensions, PanResponder, GestureResponderEvent } from 'react-native';
 import Colors from '@/constants/colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -16,43 +16,24 @@ interface WaveformSeekBarProps {
     barCount?: number;
 }
 
-// Generate a static waveform pattern
-const generateWaveformData = (count: number, seed: number = 42): number[] => {
-    const data: number[] = [];
-
-    for (let i = 0; i < count; i++) {
-        const noise = Math.sin(i * 0.5 + seed) * 0.3 +
-            Math.sin(i * 1.3 + seed * 2) * 0.2 +
-            Math.sin(i * 2.7 + seed * 3) * 0.15;
-        let value = 0.3 + Math.abs(noise + 0.5) * 0.7;
-        value = Math.max(0.2, Math.min(1, value));
-        data.push(value);
-    }
-
-    return data;
-};
-
 export default function WaveformSeekBar({
     progress,
     duration,
     onSeek,
     onSeekStart,
     onSeekEnd,
-    height = 60,
-    waveColor = Colors.border,
+    height = 44,
     progressColor = Colors.accent,
-    barCount = 50,
 }: WaveformSeekBarProps) {
     const containerWidth = SCREEN_WIDTH - 48;
-    const barWidth = (containerWidth / barCount) * 0.6;
-    const barGap = (containerWidth / barCount) * 0.4;
+    const TRACK_HEIGHT = 3;
+    const THUMB_SIZE = 12;
+    const THUMB_SIZE_ACTIVE = 16;
 
     const [isSeeking, setIsSeeking] = useState(false);
     const [seekProgress, setSeekProgress] = useState(0);
     const containerRef = useRef<View>(null);
     const containerLayoutRef = useRef({ x: 0, width: containerWidth });
-
-    const waveformData = useMemo(() => generateWaveformData(barCount, Math.floor(duration) % 100), [barCount, duration]);
 
     const calculateProgress = (pageX: number): number => {
         const relativeX = pageX - containerLayoutRef.current.x;
@@ -91,51 +72,46 @@ export default function WaveformSeekBar({
     }), [duration, onSeek, onSeekStart, onSeekEnd]);
 
     const displayProgress = isSeeking ? seekProgress : progress;
-    const progressIndex = Math.floor(displayProgress * barCount);
+    const thumbSize = isSeeking ? THUMB_SIZE_ACTIVE : THUMB_SIZE;
     const thumbPosition = displayProgress * containerWidth;
 
     return (
         <View
             ref={containerRef}
             style={[styles.container, { height }]}
-            onLayout={(e) => {
-                containerRef.current?.measure((x, y, width, height, pageX, pageY) => {
+            onLayout={() => {
+                containerRef.current?.measure((_x, _y, width, _height, pageX) => {
                     containerLayoutRef.current = { x: pageX, width };
                 });
             }}
             {...panResponder.panHandlers}
         >
-            {/* Waveform bars */}
-            <View style={styles.waveformContainer}>
-                {waveformData.map((amplitude, index) => {
-                    const isPlayed = index <= progressIndex;
-                    const barHeight = amplitude * (height - 20);
-
-                    return (
-                        <View
-                            key={index}
-                            style={[
-                                styles.bar,
-                                {
-                                    width: barWidth,
-                                    height: barHeight,
-                                    backgroundColor: isPlayed ? progressColor : waveColor,
-                                    marginRight: index < barCount - 1 ? barGap : 0,
-                                    borderRadius: barWidth / 2,
-                                },
-                            ]}
-                        />
-                    );
-                })}
+            {/* Track background */}
+            <View style={[styles.track, { height: TRACK_HEIGHT }]}>
+                {/* Played portion */}
+                <View
+                    style={[
+                        styles.trackFilled,
+                        {
+                            width: `${displayProgress * 100}%`,
+                            height: TRACK_HEIGHT,
+                            backgroundColor: progressColor,
+                        },
+                    ]}
+                />
             </View>
 
-            {/* Thumb/scrubber */}
+            {/* Thumb */}
             <View
                 style={[
                     styles.thumb,
                     {
-                        left: thumbPosition - 8,
+                        width: thumbSize,
+                        height: thumbSize,
+                        borderRadius: thumbSize / 2,
+                        left: thumbPosition - thumbSize / 2,
                         backgroundColor: progressColor,
+                        transform: [{ scale: isSeeking ? 1.2 : 1 }],
                     },
                 ]}
             />
@@ -149,25 +125,21 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingVertical: 10,
     },
-    waveformContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        height: '100%',
+    track: {
+        width: '100%',
+        backgroundColor: Colors.whiteAlpha20,
+        borderRadius: 2,
+        overflow: 'hidden',
     },
-    bar: {
-        minHeight: 6,
+    trackFilled: {
+        borderRadius: 2,
     },
     thumb: {
         position: 'absolute',
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        borderWidth: 3,
-        borderColor: Colors.primaryText,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.4,
-        shadowRadius: 4,
-        elevation: 5,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.3,
+        shadowRadius: 2,
+        elevation: 3,
     },
 });

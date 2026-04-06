@@ -16,6 +16,8 @@ import {
   ListMusic,
   Trash2,
   GripVertical,
+  ChevronRight,
+  Plus,
 } from "lucide-react-native";
 import React, { useState, useRef } from "react";
 import {
@@ -45,6 +47,9 @@ import { useLikedEpisodes } from "@/contexts/LikedEpisodesContext";
 import { useDownloads } from "@/contexts/DownloadContext";
 import { Episode } from "@/types/podcast";
 import WaveformSeekBar from "@/components/WaveformSeekBar";
+import ChapterList from "@/components/ChapterList";
+import ShowNotesSheet from "@/components/ShowNotesSheet";
+import { usePlaylist } from "@/contexts/PlaylistContext";
 
 const { width } = Dimensions.get("window");
 
@@ -100,22 +105,14 @@ export default function PlayerScreen() {
 
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekPosition, setSeekPosition] = useState(0);
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [queueVisible, setQueueVisible] = useState(false);
+  const [showNotesVisible, setShowNotesVisible] = useState(false);
+  const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
   const { isLiked, toggleLike } = useLikedEpisodes();
   const { isDownloaded, getDownloadProgress, downloadEpisode, deleteDownload } = useDownloads();
+  const { playlists, addToPlaylist } = usePlaylist();
 
-  const toggleDescription = () => {
-    // Enable LayoutAnimation for Android
-    if (Platform.OS === 'android') {
-      if (UIManager.setLayoutAnimationEnabledExperimental) {
-        UIManager.setLayoutAnimationEnabledExperimental(true);
-      }
-    }
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIsDescriptionExpanded(!isDescriptionExpanded);
-  };
+  // Description LayoutAnimation logic removed as we use ShowNotesSheet now
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -169,32 +166,7 @@ export default function PlayerScreen() {
 
   const currentPosition = isSeeking ? seekPosition : position;
 
-  const renderQueueItem = ({ item, index }: { item: Episode; index: number }) => (
-    <View style={styles.queueItem}>
-      <View style={styles.queueItemLeft}>
-        <GripVertical color={Colors.secondaryText} size={20} />
-        <Image
-          source={{ uri: item.artwork || currentPodcast?.artworkUrl600 }}
-          style={styles.queueItemArtwork}
-          contentFit="cover"
-        />
-        <View style={styles.queueItemInfo}>
-          <Text style={styles.queueItemTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <Text style={styles.queueItemSubtitle} numberOfLines={1}>
-            {item.podcastTitle || currentPodcast?.collectionName}
-          </Text>
-        </View>
-      </View>
-      <Pressable
-        onPress={() => removeFromQueue(index)}
-        style={({ pressed }) => [styles.removeButton, { opacity: pressed ? 0.7 : 1 }]}
-      >
-        <Trash2 color={Colors.accent} size={18} />
-      </Pressable>
-    </View>
-  );
+
 
   return (
     <View style={styles.container}>
@@ -223,7 +195,7 @@ export default function PlayerScreen() {
           <View style={styles.headerRight}>
             <Pressable onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setQueueVisible(true);
+              router.push('/queue' as any);
             }} style={styles.headerButton}>
               <ListMusic color={Colors.primaryText} size={24} />
               {queue.length > 0 && (
@@ -350,7 +322,7 @@ export default function PlayerScreen() {
           {(queue.length > 0 || upNextEpisodes.length > 0) && (
             <Pressable
               style={styles.upNextPreview}
-              onPress={() => setQueueVisible(true)}
+              onPress={() => router.push('/queue' as any)}
             >
               <View style={styles.upNextHeader}>
                 <ListMusic color={Colors.primaryText} size={18} />
@@ -371,187 +343,32 @@ export default function PlayerScreen() {
             </Pressable>
           )}
 
-          {currentEpisode.description && (
-            <Pressable style={styles.description} onPress={toggleDescription}>
+          {currentEpisode.chapters && currentEpisode.chapters.length > 0 && (
+            <ChapterList
+              chapters={currentEpisode.chapters}
+              currentPosition={currentPosition}
+              onSeek={seekTo}
+            />
+          )}
+
+          {(currentEpisode.description || currentEpisode.descriptionHtml) ? (
+            <Pressable style={[styles.description, { marginTop: 16 }]} onPress={() => setShowNotesVisible(true)}>
               <View style={styles.descriptionHeader}>
-                <Text style={styles.descriptionTitle}>About this episode</Text>
-                <ChevronDown
-                  color={Colors.secondaryText}
-                  size={20}
-                  style={{ transform: [{ rotate: isDescriptionExpanded ? '180deg' : '0deg' }] }}
-                />
+                <Text style={styles.descriptionTitle}>Show Notes</Text>
+                <ChevronRight color={Colors.secondaryText} size={20} />
               </View>
               <Text
                 style={styles.descriptionText}
-                numberOfLines={isDescriptionExpanded ? undefined : 3}
+                numberOfLines={3}
               >
                 {currentEpisode.description}
               </Text>
             </Pressable>
-          )}
+          ) : null}
         </ScrollView>
       </SafeAreaView>
 
-      {/* Queue Modal */}
-      <Modal
-        visible={queueVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setQueueVisible(false)}
-      >
-        <TouchableWithoutFeedback onPress={() => setQueueVisible(false)}>
-          <View style={styles.modalOverlay} />
-        </TouchableWithoutFeedback>
-        <View style={[styles.modalContent, styles.queueModalContent]}>
-          <View style={styles.dragHandle} />
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Queue</Text>
-            <View style={styles.queueHeaderRight}>
-              {queue.length > 0 && (
-                <Pressable
-                  onPress={clearQueue}
-                  style={({ pressed }) => [styles.clearButton, { opacity: pressed ? 0.7 : 1 }]}
-                >
-                  <Text style={styles.clearButtonText}>Clear All</Text>
-                </Pressable>
-              )}
-              <Pressable
-                onPress={() => setQueueVisible(false)}
-                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, marginLeft: 16 })}
-              >
-                <X color={Colors.primaryText} size={20} />
-              </Pressable>
-            </View>
-          </View>
 
-          {/* Now Playing */}
-          <View style={styles.nowPlayingSection}>
-            <Text style={styles.queueSectionTitle}>Now Playing</Text>
-            <View style={styles.nowPlayingItem}>
-              <Image
-                source={{ uri: currentPodcast.artworkUrl600 }}
-                style={styles.nowPlayingArtwork}
-                contentFit="cover"
-              />
-              <View style={styles.nowPlayingInfo}>
-                <Text style={styles.nowPlayingTitle} numberOfLines={2}>
-                  {currentEpisode.title}
-                </Text>
-                <Text style={styles.nowPlayingSubtitle} numberOfLines={1}>
-                  {currentPodcast.collectionName}
-                </Text>
-              </View>
-              {isPlaying ? (
-                <View style={styles.playingIndicator}>
-                  <View style={[styles.playingBar, styles.playingBar1]} />
-                  <View style={[styles.playingBar, styles.playingBar2]} />
-                  <View style={[styles.playingBar, styles.playingBar3]} />
-                </View>
-              ) : (
-                <Pause color={Colors.accent} size={20} />
-              )}
-            </View>
-          </View>
-
-          {/* Queue */}
-          {queue.length > 0 && (
-            <View style={styles.queueSection}>
-              <Text style={styles.queueSectionTitle}>Up Next ({queue.length})</Text>
-              <FlatList
-                data={queue}
-                renderItem={renderQueueItem}
-                keyExtractor={(item, index) => `queue-${item.id}-${index}`}
-                style={styles.queueList}
-                showsVerticalScrollIndicator={false}
-              />
-            </View>
-          )}
-
-          {/* Half-played episodes */}
-          {halfPlayedEpisodes.length > 0 && queue.length === 0 && (
-            <View style={styles.queueSection}>
-              <Text style={styles.queueSectionTitle}>Continue Listening</Text>
-              {halfPlayedEpisodes.slice(0, 3).map((ep, index) => (
-                <Pressable
-                  key={`half-${ep.episodeId}-${index}`}
-                  style={styles.continueItem}
-                  onPress={() => {
-                    addToQueue({
-                      id: ep.episodeId,
-                      title: ep.episodeTitle || 'Untitled',
-                      description: '',
-                      audioUrl: ep.audioUrl || '',
-                      pubDate: '',
-                      duration: ep.duration,
-                      artwork: ep.episodeArtwork || ep.podcastArtwork || '',
-                      podcastTitle: ep.podcastTitle,
-                    });
-                    setQueueVisible(false);
-                  }}
-                >
-                  <Image
-                    source={{ uri: ep.podcastArtwork }}
-                    style={styles.queueItemArtwork}
-                    contentFit="cover"
-                  />
-                  <View style={styles.queueItemInfo}>
-                    <Text style={styles.queueItemTitle} numberOfLines={1}>
-                      {ep.episodeTitle}
-                    </Text>
-                    <Text style={styles.queueItemSubtitle} numberOfLines={1}>
-                      {ep.podcastTitle} • {Math.round((ep.position / ep.duration) * 100)}% played
-                    </Text>
-                  </View>
-                  <Text style={styles.addToQueueText}>+ Add</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-
-          {/* More from this podcast */}
-          {upNextEpisodes.length > 0 && queue.length === 0 && (
-            <View style={styles.queueSection}>
-              <Text style={styles.queueSectionTitle}>More from {currentPodcast.collectionName}</Text>
-              {upNextEpisodes.map((ep, index) => (
-                <Pressable
-                  key={`upnext-${ep.id}-${index}`}
-                  style={styles.continueItem}
-                  onPress={() => {
-                    addToQueue(ep);
-                    setQueueVisible(false);
-                  }}
-                >
-                  <Image
-                    source={{ uri: ep.artwork || currentPodcast.artworkUrl600 }}
-                    style={styles.queueItemArtwork}
-                    contentFit="cover"
-                  />
-                  <View style={styles.queueItemInfo}>
-                    <Text style={styles.queueItemTitle} numberOfLines={1}>
-                      {ep.title}
-                    </Text>
-                    <Text style={styles.queueItemSubtitle} numberOfLines={1}>
-                      {ep.duration ? formatDuration(ep.duration) : ''}
-                    </Text>
-                  </View>
-                  <Text style={styles.addToQueueText}>+ Add</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
-
-          {/* Empty state */}
-          {queue.length === 0 && halfPlayedEpisodes.length === 0 && upNextEpisodes.length === 0 && (
-            <View style={styles.emptyQueue}>
-              <ListMusic color={Colors.secondaryText} size={48} />
-              <Text style={styles.emptyQueueTitle}>Your queue is empty</Text>
-              <Text style={styles.emptyQueueText}>
-                Add episodes to your queue from the podcast page
-              </Text>
-            </View>
-          )}
-        </View>
-      </Modal>
 
       {/* Options Modal */}
       <Modal
@@ -572,6 +389,22 @@ export default function PlayerScreen() {
               style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
             >
               <X color={Colors.primaryText} size={20} />
+            </Pressable>
+          </View>
+
+          <View style={[styles.menuSection, { marginBottom: 16 }]}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.menuItem,
+                { opacity: pressed ? 0.7 : 1 }
+              ]}
+              onPress={() => {
+                setMenuVisible(false);
+                setTimeout(() => setPlaylistModalVisible(true), 300);
+              }}
+            >
+              <Plus size={20} color={Colors.primaryText} />
+              <Text style={styles.menuItemText}>Add to Playlist...</Text>
             </Pressable>
           </View>
 
@@ -662,7 +495,63 @@ export default function PlayerScreen() {
           </View>
         </View>
       </Modal>
-    </View >
+
+      {/* Playlist Selector Modal */}
+      <Modal
+        visible={playlistModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPlaylistModalVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setPlaylistModalVisible(false)}>
+          <View style={styles.modalOverlay} />
+        </TouchableWithoutFeedback>
+        <View style={styles.playlistModalContent}>
+          <View style={styles.dragHandle} />
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Add to Playlist</Text>
+            <Pressable
+              onPress={() => setPlaylistModalVisible(false)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <X color={Colors.primaryText} size={20} />
+            </Pressable>
+          </View>
+          <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+            {playlists.map((playlist) => (
+              <Pressable
+                key={playlist.id}
+                style={styles.playlistItem}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  addToPlaylist(playlist.id, currentEpisode);
+                  setPlaylistModalVisible(false);
+                }}
+              >
+                <ListMusic color={Colors.secondaryText} size={20} />
+                <Text style={styles.playlistItemText}>{playlist.name}</Text>
+              </Pressable>
+            ))}
+            {playlists.length === 0 && (
+              <Text style={{ color: Colors.secondaryText, textAlign: 'center', marginVertical: 20 }}>
+                No playlists created yet.
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <ShowNotesSheet
+        visible={showNotesVisible}
+        onClose={() => setShowNotesVisible(false)}
+        episodeTitle={currentEpisode.title}
+        podcastName={currentPodcast.collectionName || ''}
+        pubDate={currentEpisode.pubDate}
+        duration={currentEpisode.duration}
+        descriptionHtml={currentEpisode.descriptionHtml}
+        description={currentEpisode.description}
+      />
+    </View>
   );
 }
 
@@ -1053,134 +942,40 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 10,
   },
-
-  // Queue styles
-  nowPlayingSection: {
-    marginBottom: 20,
-  },
-  queueSection: {
-    marginBottom: 20,
-  },
-  queueSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.secondaryText,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  nowPlayingItem: {
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: 12,
-    padding: 12,
+    paddingVertical: 12,
     gap: 12,
   },
-  nowPlayingArtwork: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: Colors.surface,
-  },
-  nowPlayingInfo: {
-    flex: 1,
-  },
-  nowPlayingTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: Colors.primaryText,
-    marginBottom: 4,
-  },
-  nowPlayingSubtitle: {
-    fontSize: 13,
-    color: Colors.secondaryText,
-  },
-  playingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    height: 20,
-    gap: 2,
-  },
-  playingBar: {
-    width: 3,
-    backgroundColor: Colors.accent,
-    borderRadius: 2,
-  },
-  playingBar1: {
-    height: 12,
-  },
-  playingBar2: {
-    height: 18,
-  },
-  playingBar3: {
-    height: 8,
-  },
-  queueList: {
-    maxHeight: 200,
-  },
-  queueItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  queueItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 10,
-  },
-  queueItemArtwork: {
-    width: 44,
-    height: 44,
-    borderRadius: 6,
-    backgroundColor: Colors.surface,
-  },
-  queueItemInfo: {
-    flex: 1,
-  },
-  queueItemTitle: {
-    fontSize: 14,
+  menuItemText: {
+    fontSize: 16,
     fontWeight: '500',
     color: Colors.primaryText,
-    marginBottom: 2,
   },
-  queueItemSubtitle: {
-    fontSize: 12,
-    color: Colors.secondaryText,
+  playlistModalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingTop: 10,
+    paddingBottom: 40,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
-  removeButton: {
-    padding: 8,
-  },
-  continueItem: {
+  playlistItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     gap: 12,
   },
-  addToQueueText: {
-    color: Colors.accent,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  emptyQueue: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyQueueTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  playlistItemText: {
+    fontSize: 16,
+    fontWeight: '500',
     color: Colors.primaryText,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyQueueText: {
-    fontSize: 14,
-    color: Colors.secondaryText,
-    textAlign: 'center',
   },
 });

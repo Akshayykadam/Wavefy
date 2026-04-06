@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, Search, Library } from "lucide-react-native";
+import { Home, Search, Library, Compass } from "lucide-react-native";
 import React from "react";
 import { Platform, StyleSheet } from "react-native";
 import { BlurView } from "expo-blur";
@@ -34,7 +34,7 @@ export default function TabLayout() {
             />
           ) : null,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: '600' as const,
           letterSpacing: -0.1,
         },
@@ -45,6 +45,13 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="discover"
+        options={{
+          title: "Discover",
+          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
         }}
       />
       <Tabs.Screen

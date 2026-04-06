@@ -11,10 +11,18 @@ export interface Podcast {
   collectionViewUrl: string;
 }
 
+export interface Chapter {
+  title: string;
+  startTime: number; // seconds
+  endTime?: number;  // seconds
+  artwork?: string;
+}
+
 export interface Episode {
   id: string;
   title: string;
   description: string;
+  descriptionHtml?: string;
   audioUrl: string;
   pubDate: string;
   duration: number;
@@ -22,6 +30,7 @@ export interface Episode {
   podcastTitle?: string;
   artistName?: string;
   localUri?: string;
+  chapters?: Chapter[];
 }
 
 export interface PlayerState {
@@ -31,4 +40,12 @@ export interface PlayerState {
   position: number;
   duration: number;
   queue: Episode[];
+}
+
+export interface PlaylistData {
+  id: string;
+  name: string;
+  episodes: Episode[];
+  createdAt: string;
+  updatedAt: string;
 }

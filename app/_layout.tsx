@@ -6,6 +6,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
 import { FollowedPodcastsProvider } from "@/contexts/FollowedPodcastsContext";
 import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import { PlaylistProvider } from "@/contexts/PlaylistContext";
 import MiniPlayer from "@/components/MiniPlayer";
 import { DownloadProvider } from "@/contexts/DownloadContext";
 import TrackPlayer from 'react-native-track-player';
@@ -36,6 +38,27 @@ function RootLayoutNav() {
           animation: "slide_from_right"
         }}
       />
+      <Stack.Screen
+        name="queue"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right"
+        }}
+      />
+      <Stack.Screen
+        name="notifications"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right"
+        }}
+      />
+      <Stack.Screen
+        name="playlist/[id]"
+        options={{
+          headerShown: false,
+          animation: "slide_from_right"
+        }}
+      />
     </Stack>
   );
 }
@@ -55,8 +78,12 @@ export default function RootLayout() {
           <LikedEpisodesProvider>
             <DownloadProvider>
               <PlayerProvider>
-                <RootLayoutNav />
-                <MiniPlayer />
+                <NotificationProvider>
+                  <PlaylistProvider>
+                    <RootLayoutNav />
+                    <MiniPlayer />
+                  </PlaylistProvider>
+                </NotificationProvider>
               </PlayerProvider>
             </DownloadProvider>
           </LikedEpisodesProvider>

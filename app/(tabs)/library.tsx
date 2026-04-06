@@ -2,18 +2,20 @@ import { useRouter } from "expo-router";
 import { View, Text, StyleSheet, FlatList, Pressable, Animated, Dimensions } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Play, Trash2, Heart, Download, Headphones } from "lucide-react-native";
+import { Play, Trash2, Heart, Download, Headphones, Music2, Plus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useFollowedPodcasts } from "@/contexts/FollowedPodcastsContext";
 import { useLikedEpisodes } from "@/contexts/LikedEpisodesContext";
 import { useDownloads } from "@/contexts/DownloadContext";
 import { usePlayer } from "@/contexts/PlayerContext";
+import { usePlaylist } from "@/contexts/PlaylistContext";
 import { useState, useRef, useCallback } from "react";
+import { Alert, TextInput } from "react-native";
 
 const { width } = Dimensions.get("window");
-const TABS = ['Following', 'Liked', 'Downloads'] as const;
-type TabKey = 'following' | 'liked' | 'downloads';
+const TABS = ['Following', 'Liked', 'Downloads', 'Playlists'] as const;
+type TabKey = 'following' | 'liked' | 'downloads' | 'playlists';
 
 export default function LibraryScreen() {
   const router = useRouter();
@@ -21,15 +23,16 @@ export default function LibraryScreen() {
   const { likedEpisodes } = useLikedEpisodes();
   const { downloads, deleteDownload } = useDownloads();
   const { playEpisode, setQueue } = usePlayer();
+  const { playlists, createPlaylist, deletePlaylist } = usePlaylist();
   const [activeTab, setActiveTab] = useState<TabKey>('following');
 
   // Animated underline
-  const tabWidths = useRef<number[]>([0, 0, 0]).current;
-  const tabPositions = useRef<number[]>([0, 0, 0]).current;
+  const tabWidths = useRef<number[]>([0, 0, 0, 0]).current;
+  const tabPositions = useRef<number[]>([0, 0, 0, 0]).current;
   const indicatorLeft = useRef(new Animated.Value(0)).current;
   const indicatorWidth = useRef(new Animated.Value(0)).current;
 
-  const tabIndexMap: Record<TabKey, number> = { following: 0, liked: 1, downloads: 2 };
+  const tabIndexMap: Record<TabKey, number> = { following: 0, liked: 1, downloads: 2, playlists: 3 };
 
   const switchTab = useCallback((tab: TabKey) => {
     Haptics.selectionAsync();
@@ -211,7 +214,7 @@ export default function LibraryScreen() {
               "No liked episodes yet"
             )}
           />
-        ) : (
+        ) : activeTab === 'downloads' ? (
           <FlatList
             key="@"
             data={Object.values(downloads) as any[]}
@@ -221,6 +224,81 @@ export default function LibraryScreen() {
             ListEmptyComponent={renderEmptyState(
               <Download size={48} color={Colors.secondaryText} />,
               "No downloaded episodes"
+            )}
+          />
+        ) : (
+          <FlatList
+            key="$"
+            data={[...playlists, { id: '__create__', name: '', episodes: [], createdAt: '', updatedAt: '' }]}
+            renderItem={({ item }) => {
+              if (item.id === '__create__') {
+                return (
+                  <Pressable
+                    style={({ pressed }) => [styles.playlistCard, pressed && { opacity: 0.7 }]}
+                    onPress={() => {
+                      Alert.prompt(
+                        'New Playlist',
+                        'Enter a name for your playlist',
+                        (name) => {
+                          if (name && name.trim()) {
+                            createPlaylist(name.trim());
+                          }
+                        }
+                      );
+                    }}
+                  >
+                    <View style={styles.createPlaylistArt}>
+                      <Plus color={Colors.secondaryText} size={32} />
+                    </View>
+                    <Text style={styles.playlistName}>Create New</Text>
+                  </Pressable>
+                );
+              }
+              const artworks = item.episodes.slice(0, 4).map(e => e.artwork).filter(Boolean);
+              return (
+                <Pressable
+                  style={({ pressed }) => [styles.playlistCard, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    router.push(`/playlist/${item.id}` as any);
+                  }}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    Alert.alert(
+                      'Delete Playlist',
+                      `Delete "${item.name}"?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Delete', style: 'destructive', onPress: () => deletePlaylist(item.id) },
+                      ]
+                    );
+                  }}
+                >
+                  {artworks.length >= 4 ? (
+                    <View style={styles.playlistMosaic}>
+                      {artworks.slice(0, 4).map((uri, i) => (
+                        <Image key={i} source={{ uri }} style={styles.mosaicTile} contentFit="cover" />
+                      ))}
+                    </View>
+                  ) : artworks.length > 0 ? (
+                    <Image source={{ uri: artworks[0] }} style={styles.playlistSingleArt} contentFit="cover" />
+                  ) : (
+                    <View style={styles.createPlaylistArt}>
+                      <Music2 color={Colors.secondaryText} size={24} />
+                    </View>
+                  )}
+                  <Text style={styles.playlistName} numberOfLines={2}>{item.name}</Text>
+                  <Text style={styles.playlistCount}>{item.episodes.length} episodes</Text>
+                </Pressable>
+              );
+            }}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            contentContainerStyle={styles.listContent}
+            columnWrapperStyle={styles.columnWrapper}
+            ListEmptyComponent={renderEmptyState(
+              <Music2 size={48} color={Colors.secondaryText} />,
+              "No playlists yet"
             )}
           />
         )}
@@ -361,6 +439,56 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 14,
+    color: Colors.secondaryText,
+  },
+  playlistCard: {
+    flex: 1,
+    marginBottom: 20,
+    maxWidth: '48%',
+  },
+  playlistMosaic: {
+    width: '100%',
+    aspectRatio: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    borderRadius: 12,
+    overflow: 'hidden',
+    gap: 2,
+    marginBottom: 8,
+  },
+  mosaicTile: {
+    width: '49%',
+    aspectRatio: 1,
+    backgroundColor: Colors.surface,
+  },
+  playlistSingleArt: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: Colors.surface,
+  },
+  createPlaylistArt: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: Colors.whiteAlpha10,
+    borderStyle: 'dashed',
+  },
+  playlistName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primaryText,
+    marginBottom: 2,
+    letterSpacing: -0.2,
+  },
+  playlistCount: {
+    fontSize: 12,
     color: Colors.secondaryText,
   },
 });
