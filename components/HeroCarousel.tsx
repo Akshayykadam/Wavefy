@@ -7,7 +7,7 @@ import Colors from '@/constants/colors';
 import { Podcast } from '@/types/podcast';
 
 const { width } = Dimensions.get('window');
-const ITEM_WIDTH = width * 0.75;
+const ITEM_WIDTH = width * 0.86;
 const ITEM_SPACING = (width - ITEM_WIDTH) / 2;
 
 interface HeroCarouselProps {
@@ -49,13 +49,13 @@ export default function HeroCarousel({ podcasts }: HeroCarouselProps) {
 
           const scale = scrollX.interpolate({
             inputRange,
-            outputRange: [0.85, 1, 0.85],
+            outputRange: [0.9, 1, 0.9],
             extrapolate: 'clamp',
           });
 
           const opacity = scrollX.interpolate({
             inputRange,
-            outputRange: [0.5, 1, 0.5],
+            outputRange: [0.65, 1, 0.65],
             extrapolate: 'clamp',
           });
 
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    width: ITEM_WIDTH - 20,
+    width: ITEM_WIDTH - 12,
     backgroundColor: Colors.surface,
     borderRadius: 20,
     padding: 12,

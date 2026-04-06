@@ -238,7 +238,8 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         if (p.completed) return false;
         if (p.duration <= 0) return false;
         const percent = (p.position / p.duration) * 100;
-        return percent >= 5 && percent < 95;
+        // Show if played more than 15 seconds, or > 0.5% of duration, and not essentially finished (> 99%)
+        return (p.position >= 15 || percent >= 0.5) && percent < 99;
       })
       .sort((a, b) => new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime());
   }, [episodeProgressMap]);
