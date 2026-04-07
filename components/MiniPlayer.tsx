@@ -42,7 +42,6 @@ export default function MiniPlayer() {
 
   const TAB_BAR_HEIGHT = 49;
   const bottomPosition = insets.bottom + (isTabsScreen ? TAB_BAR_HEIGHT : 0) + 8;
-  const progress = duration > 0 ? Math.min(position / duration, 1) : 0;
 
   return (
     <Pressable
@@ -52,10 +51,6 @@ export default function MiniPlayer() {
         router.push("/player");
       }}
     >
-      {/* Progress bar at top */}
-      <View style={styles.progressBarContainer}>
-        <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />
-      </View>
 
       {/* Blur background */}
       {Platform.OS === 'ios' ? (
@@ -66,7 +61,7 @@ export default function MiniPlayer() {
         />
       ) : null}
       {/* Dark overlay to reduce transparency, solid surface for Android */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(12,12,12,0.75)' : Colors.surface }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(10,10,10,0.78)' : Colors.surface }]} />
 
       <View style={styles.content}>
         {/* Artwork with glow */}
@@ -75,6 +70,7 @@ export default function MiniPlayer() {
             source={{ uri: currentPodcast.artworkUrl600 }}
             style={styles.artwork}
             contentFit="cover"
+            transition={200}
           />
         </View>
 
@@ -126,16 +122,16 @@ export default function MiniPlayer() {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    left: 8,
-    right: 8,
-    borderRadius: 16,
+    left: 10,
+    right: 10,
+    borderRadius: 18,
     overflow: 'hidden',
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
-    borderWidth: 1,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 14,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.whiteAlpha10,
   },
   progressBarContainer: {
@@ -143,50 +139,50 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 3,
+    height: 2.5,
     backgroundColor: Colors.progressBg,
     zIndex: 10,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
     backgroundColor: Colors.accent,
-    borderRadius: 2,
   },
   content: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     gap: 10,
   },
   artworkWrapper: {
     shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
   artwork: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
     backgroundColor: Colors.surface,
   },
   info: {
     flex: 1,
+    gap: 2,
   },
   title: {
     fontSize: 14,
-    fontWeight: "600" as const,
+    fontWeight: "700" as const,
     color: Colors.primaryText,
-    marginBottom: 1,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 12,
+    fontWeight: '400',
     color: Colors.secondaryText,
     letterSpacing: -0.1,
   },
@@ -197,8 +193,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   playButton: {
-    width: 36,
-    height: 36,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: Colors.whiteAlpha10,
     justifyContent: "center",
     alignItems: "center",
   },

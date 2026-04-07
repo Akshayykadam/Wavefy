@@ -1,13 +1,14 @@
 import React, { useRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, Animated, Pressable } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { Podcast } from '@/types/podcast';
 
 const { width } = Dimensions.get('window');
-const ITEM_WIDTH = width * 0.86;
+const ITEM_WIDTH = width * 0.82;
 const ITEM_SPACING = (width - ITEM_WIDTH) / 2;
 
 interface HeroCarouselProps {
@@ -49,13 +50,13 @@ export default function HeroCarousel({ podcasts }: HeroCarouselProps) {
 
           const scale = scrollX.interpolate({
             inputRange,
-            outputRange: [0.9, 1, 0.9],
+            outputRange: [0.92, 1, 0.92],
             extrapolate: 'clamp',
           });
 
           const opacity = scrollX.interpolate({
             inputRange,
-            outputRange: [0.65, 1, 0.65],
+            outputRange: [0.5, 1, 0.5],
             extrapolate: 'clamp',
           });
 
@@ -72,11 +73,17 @@ export default function HeroCarousel({ podcasts }: HeroCarouselProps) {
                   source={{ uri: item.artworkUrl600 }}
                   style={styles.artwork}
                   contentFit="cover"
+                  transition={300}
                 />
-                <View style={styles.textContainer}>
-                  <Text style={styles.title} numberOfLines={1}>{item.collectionName}</Text>
-                  <Text style={styles.subtitle} numberOfLines={1}>{item.artistName}</Text>
-                </View>
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.85)']}
+                  style={styles.gradientOverlay}
+                >
+                  <View style={styles.textContainer}>
+                    <Text style={styles.title} numberOfLines={1}>{item.collectionName}</Text>
+                    <Text style={styles.subtitle} numberOfLines={1}>{item.artistName}</Text>
+                  </View>
+                </LinearGradient>
               </Pressable>
             </Animated.View>
           );
@@ -88,9 +95,9 @@ export default function HeroCarousel({ podcasts }: HeroCarouselProps) {
 
 const styles = StyleSheet.create({
   container: {
-    height: ITEM_WIDTH + 80,
-    marginTop: 8,
-    marginBottom: 24,
+    height: width * 0.68,
+    marginTop: 4,
+    marginBottom: 8,
   },
   itemContainer: {
     width: ITEM_WIDTH,
@@ -98,38 +105,52 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   card: {
-    width: ITEM_WIDTH - 12,
+    width: ITEM_WIDTH - 8,
+    height: width * 0.58,
     backgroundColor: Colors.surface,
     borderRadius: 20,
-    padding: 12,
+    overflow: 'hidden',
     shadowColor: Colors.black,
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.6,
     shadowRadius: 24,
-    elevation: 10,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: Colors.whiteAlpha05,
   },
   cardPressed: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
   artwork: {
     width: '100%',
-    aspectRatio: 1,
-    borderRadius: 16,
+    height: '100%',
     backgroundColor: Colors.surfaceLight,
   },
+  gradientOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+  },
   textContainer: {
-    marginTop: 16,
-    marginBottom: 4,
-    alignItems: 'center',
+    gap: 4,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.primaryText,
-    marginBottom: 4,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: -0.4,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: Colors.secondaryText,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.7)',
   },
 });

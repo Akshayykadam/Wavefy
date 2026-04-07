@@ -6,14 +6,11 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
-  ActivityIndicator,
-  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { TrendingUp, Star, Flame } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -22,7 +19,6 @@ import SkeletonLoader from '@/components/SkeletonLoader';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.42;
-const CHART_CARD_WIDTH = width * 0.7;
 
 // Fetch top podcasts from Apple RSS feed
 const fetchTopPodcasts = async (limit: number = 25): Promise<Podcast[]> => {
@@ -59,13 +55,20 @@ const fetchByCategory = async (genre: string): Promise<Podcast[]> => {
   return data.results || [];
 };
 
+const getRankColor = (index: number) => {
+  if (index === 0) return Colors.gold;
+  if (index === 1) return Colors.silver;
+  if (index === 2) return Colors.bronze;
+  return Colors.secondaryText;
+};
+
 export default function DiscoverScreen() {
   const router = useRouter();
 
   const { data: topPodcasts = [], isLoading: topLoading } = useQuery({
     queryKey: ['top-podcasts'],
     queryFn: () => fetchTopPodcasts(25),
-    staleTime: 1000 * 60 * 30, // 30 min cache
+    staleTime: 1000 * 60 * 30,
   });
 
   const { data: editorPicks = [], isLoading: editorLoading } = useQuery({
@@ -89,6 +92,7 @@ export default function DiscoverScreen() {
         source={{ uri: podcast.artworkUrl600 }}
         style={styles.trendArtwork}
         contentFit="cover"
+        transition={200}
       />
       <Text style={styles.trendTitle} numberOfLines={2}>{podcast.collectionName}</Text>
       <Text style={styles.trendArtist} numberOfLines={1}>{podcast.artistName}</Text>
@@ -98,20 +102,29 @@ export default function DiscoverScreen() {
   const renderChartItem = (podcast: Podcast, index: number) => (
     <Pressable
       key={podcast.collectionId}
-      style={({ pressed }) => [styles.chartItem, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.chartItem,
+        pressed && { backgroundColor: Colors.surfaceLight },
+        index < 3 && styles.chartItemTop3,
+      ]}
       onPress={() => navigatePodcast(podcast.collectionId)}
     >
-      <Text style={styles.chartRank}>{index + 1}</Text>
+      <Text style={[styles.chartRank, { color: getRankColor(index) }]}>
+        {index + 1}
+      </Text>
       <Image
         source={{ uri: podcast.artworkUrl600 || podcast.artworkUrl100 }}
-        style={styles.chartArtwork}
+        style={[styles.chartArtwork, index < 3 && styles.chartArtworkTop3]}
         contentFit="cover"
+        transition={200}
       />
       <View style={styles.chartInfo}>
         <Text style={styles.chartTitle} numberOfLines={1}>{podcast.collectionName}</Text>
         <Text style={styles.chartArtist} numberOfLines={1}>{podcast.artistName}</Text>
         {podcast.primaryGenreName ? (
-          <Text style={styles.chartGenre}>{podcast.primaryGenreName}</Text>
+          <View style={styles.genreTag}>
+            <Text style={styles.chartGenre}>{podcast.primaryGenreName}</Text>
+          </View>
         ) : null}
       </View>
     </Pressable>
@@ -121,9 +134,9 @@ export default function DiscoverScreen() {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
       {[1, 2, 3].map(i => (
         <View key={i} style={{ width: CARD_WIDTH, marginRight: 12 }}>
-          <SkeletonLoader style={{ width: CARD_WIDTH, height: CARD_WIDTH, borderRadius: 12 }} />
-          <SkeletonLoader style={{ width: CARD_WIDTH * 0.8, height: 14, borderRadius: 4, marginTop: 8 }} />
-          <SkeletonLoader style={{ width: CARD_WIDTH * 0.5, height: 12, borderRadius: 4, marginTop: 4 }} />
+          <SkeletonLoader style={{ width: CARD_WIDTH, height: CARD_WIDTH, borderRadius: 14 }} />
+          <SkeletonLoader style={{ width: CARD_WIDTH * 0.8, height: 14, borderRadius: 4, marginTop: 10 }} />
+          <SkeletonLoader style={{ width: CARD_WIDTH * 0.5, height: 12, borderRadius: 4, marginTop: 6 }} />
         </View>
       ))}
     </ScrollView>
@@ -134,12 +147,32 @@ export default function DiscoverScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Discover</Text>
+          <Text style={styles.headerSubtitle}>Find your next favorite show</Text>
         </View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          {/* Editor's Picks — moved above trending */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Star color={Colors.accent} size={18} fill={Colors.accent} />
+              <Text style={styles.sectionTitle}>Editor's Picks</Text>
+            </View>
+            {editorLoading ? renderSkeletonCards() : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+                snapToInterval={CARD_WIDTH + 12}
+                decelerationRate="fast"
+              >
+                {editorPicks.slice(0, 8).map(renderTrendingCard)}
+              </ScrollView>
+            )}
+          </View>
+
           {/* Trending Now */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -159,25 +192,6 @@ export default function DiscoverScreen() {
             )}
           </View>
 
-          {/* Editor's Picks */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Star color={Colors.accent} size={18} fill={Colors.accent} />
-              <Text style={styles.sectionTitle}>Editor's Picks</Text>
-            </View>
-            {editorLoading ? renderSkeletonCards() : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-                snapToInterval={CARD_WIDTH + 12}
-                decelerationRate="fast"
-              >
-                {editorPicks.slice(0, 8).map(renderTrendingCard)}
-              </ScrollView>
-            )}
-          </View>
-
           {/* Top Charts */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -189,7 +203,7 @@ export default function DiscoverScreen() {
                 {[1, 2, 3, 4, 5].map(i => (
                   <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
                     <SkeletonLoader style={{ width: 24, height: 20, borderRadius: 4, marginRight: 12 }} />
-                    <SkeletonLoader style={{ width: 48, height: 48, borderRadius: 10, marginRight: 12 }} />
+                    <SkeletonLoader style={{ width: 52, height: 52, borderRadius: 12, marginRight: 12 }} />
                     <View style={{ flex: 1 }}>
                       <SkeletonLoader style={{ height: 14, width: '80%', borderRadius: 4, marginBottom: 6 }} />
                       <SkeletonLoader style={{ height: 12, width: '50%', borderRadius: 4 }} />
@@ -230,6 +244,12 @@ const styles = StyleSheet.create({
     color: Colors.primaryText,
     letterSpacing: -0.5,
   },
+  headerSubtitle: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    marginTop: 2,
+    letterSpacing: -0.2,
+  },
   scrollContent: {
     paddingBottom: 40,
   },
@@ -259,20 +279,20 @@ const styles = StyleSheet.create({
   trendArtwork: {
     width: CARD_WIDTH,
     height: CARD_WIDTH,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: Colors.surface,
   },
   trendTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.primaryText,
-    marginTop: 8,
+    marginTop: 10,
     letterSpacing: -0.2,
   },
   trendArtist: {
     fontSize: 12,
     color: Colors.secondaryText,
-    marginTop: 2,
+    marginTop: 3,
   },
   chartList: {
     paddingHorizontal: 20,
@@ -281,38 +301,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 4,
     gap: 12,
+    borderRadius: 12,
+  },
+  chartItemTop3: {
+    backgroundColor: Colors.whiteAlpha05,
+    marginBottom: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
   chartRank: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '800',
-    color: Colors.secondaryText,
     width: 28,
     textAlign: 'center',
   },
   chartArtwork: {
     width: 52,
     height: 52,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: Colors.surface,
+  },
+  chartArtworkTop3: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
   },
   chartInfo: {
     flex: 1,
+    gap: 2,
   },
   chartTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.primaryText,
-    marginBottom: 2,
     letterSpacing: -0.2,
   },
   chartArtist: {
     fontSize: 13,
     color: Colors.secondaryText,
   },
+  genreTag: {
+    backgroundColor: Colors.whiteAlpha05,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginTop: 2,
+  },
   chartGenre: {
     fontSize: 11,
     color: Colors.accent,
-    marginTop: 2,
+    fontWeight: '500',
   },
 });

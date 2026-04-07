@@ -8,11 +8,10 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
-  RefreshControl,
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
@@ -58,16 +57,14 @@ const fetchPodcastsByCategory = async (category: string): Promise<Podcast[]> => 
 
 const getGreeting = () => {
   const hour = new Date().getHours();
-  if (hour < 12) return { text: "Good Morning", icon: <Sun color={Colors.primaryText} size={28} /> };
-  if (hour < 18) return { text: "Good Afternoon", icon: <Sunset color={Colors.primaryText} size={28} /> };
-  return { text: "Good Evening", icon: <Moon color={Colors.primaryText} size={28} /> };
+  if (hour < 12) return { text: "Good Morning" };
+  if (hour < 18) return { text: "Good Afternoon" };
+  return { text: "Good Evening" };
 };
 
 export default function HomeScreen() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [activeMood, setActiveMood] = useState(MOODS[0]);
-  const [refreshing, setRefreshing] = useState(false);
 
   const {
     getHalfPlayedEpisodes,
@@ -80,16 +77,6 @@ export default function HomeScreen() {
   const halfPlayed = getHalfPlayedEpisodes();
   const { unreadCount } = useNotifications();
   const { recommendations, forYouQueue, isLoading: recsLoading, refreshRecommendations } = useRecommendations();
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await Promise.all([
-      queryClient.invalidateQueries(),
-      refreshRecommendations(),
-    ]);
-    setRefreshing(false);
-  }, [queryClient, refreshRecommendations]);
 
   const activeCategories = MOOD_CATEGORIES[activeMood];
 
@@ -180,7 +167,7 @@ export default function HomeScreen() {
   const renderMoodChips = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moodScroll} style={styles.moodScrollContainer}>
       {MOODS.map(mood => (
-        <Pressable 
+        <Pressable
           key={mood}
           style={[styles.moodChip, activeMood === mood && styles.moodChipActive]}
           onPress={() => {
@@ -198,8 +185,8 @@ export default function HomeScreen() {
     if (!queue || queue.length === 0) return null;
     const nextEp = queue[0];
     return (
-      <Pressable 
-        style={styles.upNextBanner} 
+      <Pressable
+        style={styles.upNextBanner}
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           router.push('/queue');
@@ -220,28 +207,33 @@ export default function HomeScreen() {
     return (
       <View style={styles.heroWrapper}>
         <Text style={styles.sectionTitle}>Jump Back In</Text>
-        <Pressable 
-          style={styles.heroContainer} 
+        <Pressable
+          style={styles.heroContainer}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             if (resumeEpisode) resumeEpisode(heroEpisode);
           }}
         >
-            <Image source={{ uri: heroEpisode.episodeArtwork || heroEpisode.podcastArtwork || '' }} style={[StyleSheet.absoluteFill, { borderRadius: 20 }]} contentFit="cover" />
-            <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={styles.heroOverlay}>
-              <View style={styles.heroContentInner}>
-                <View style={{ flex: 1, marginRight: 16 }}>
-                  <Text style={styles.heroTitle} numberOfLines={2}>{heroEpisode.episodeTitle || 'Untitled'}</Text>
-                  <Text style={styles.heroSubtitle} numberOfLines={1}>{heroEpisode.podcastTitle}</Text>
-                </View>
-                <View style={styles.heroPlayBtn}>
-                  <Play size={22} color={Colors.black} fill={Colors.black} style={{ marginLeft: 3 }}/>
-                </View>
+          <Image
+            source={{ uri: heroEpisode.episodeArtwork || heroEpisode.podcastArtwork || '' }}
+            style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
+            contentFit="cover"
+            transition={200}
+          />
+          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={styles.heroOverlay}>
+            <View style={styles.heroContentInner}>
+              <View style={{ flex: 1, marginRight: 16 }}>
+                <Text style={styles.heroTitle} numberOfLines={2}>{heroEpisode.episodeTitle || 'Untitled'}</Text>
+                <Text style={styles.heroSubtitle} numberOfLines={1}>{heroEpisode.podcastTitle}</Text>
               </View>
-              <View style={styles.heroProgress}>
-                  <View style={[styles.heroProgressBar, { width: `${(heroEpisode.position / Math.max(heroEpisode.duration, 1)) * 100}%` }]} />
+              <View style={styles.heroPlayBtn}>
+                <Play size={22} color={Colors.black} fill={Colors.black} style={{ marginLeft: 3 }} />
               </View>
-            </BlurView>
+            </View>
+            <View style={styles.heroProgress}>
+              <View style={[styles.heroProgressBar, { width: `${(heroEpisode.position / Math.max(heroEpisode.duration, 1)) * 100}%` }]} />
+            </View>
+          </BlurView>
         </Pressable>
       </View>
     );
@@ -274,11 +266,10 @@ export default function HomeScreen() {
           style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
         >
           {/* Mood Chips */}
           {renderMoodChips()}
-          
+
           {/* Hero Row */}
           {renderHeroCard()}
 
@@ -383,7 +374,7 @@ export default function HomeScreen() {
               </View>
               {[1, 2, 3].map((key) => (
                 <View key={`skel-mix-${key}`} style={[styles.mixItem, { backgroundColor: 'transparent', padding: 0, borderWidth: 0, marginHorizontal: 20 }]}>
-                    <SkeletonLoader style={{ width: '100%', height: 72, borderRadius: 14 }} />
+                  <SkeletonLoader style={{ width: '100%', height: 72, borderRadius: 14 }} />
                 </View>
               ))}
             </View>
@@ -524,39 +515,45 @@ const styles = StyleSheet.create({
     paddingBottom: 150,
   },
   moodScrollContainer: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   moodScroll: {
     paddingHorizontal: 20,
-    gap: 12,
+    gap: 10,
     paddingVertical: 10,
   },
   moodChip: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    backgroundColor: Colors.whiteAlpha10,
-    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.whiteAlpha10,
   },
   moodChipActive: {
     backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
   },
   moodChipText: {
     fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.secondaryText,
+    letterSpacing: -0.2,
   },
   moodChipTextActive: {
-    color: Colors.black,
+    color: '#fff',
   },
   heroWrapper: {
-    marginVertical: 12,
+    marginVertical: 8,
   },
   heroContainer: {
     marginHorizontal: 20,
     height: 180,
-    borderRadius: 20,
+    borderRadius: 22,
     backgroundColor: Colors.surface,
     overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.whiteAlpha05,
   },
   heroOverlay: {
     width: '100%',
@@ -648,7 +645,7 @@ const styles = StyleSheet.create({
   artwork: {
     width: CARD_WIDTH,
     height: CARD_WIDTH,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: Colors.surface,
   },
   podcastName: {

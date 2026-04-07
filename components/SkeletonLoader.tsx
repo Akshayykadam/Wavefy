@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
+import { Animated, StyleSheet, ViewStyle } from 'react-native';
 import Colors from '@/constants/colors';
 
 interface SkeletonProps {
@@ -14,12 +14,12 @@ export default function SkeletonLoader({ style }: SkeletonProps) {
       Animated.sequence([
         Animated.timing(animatedValue, {
           toValue: 1,
-          duration: 1000,
+          duration: 800,
           useNativeDriver: true,
         }),
         Animated.timing(animatedValue, {
           toValue: 0,
-          duration: 1000,
+          duration: 800,
           useNativeDriver: true,
         }),
       ])
@@ -28,7 +28,7 @@ export default function SkeletonLoader({ style }: SkeletonProps) {
 
   const opacity = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.3, 0.7],
+    outputRange: [0.15, 0.4],
   });
 
   return (
@@ -38,7 +38,7 @@ export default function SkeletonLoader({ style }: SkeletonProps) {
 
 const styles = StyleSheet.create({
   skeleton: {
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: Colors.surfaceElevated,
     borderRadius: 8,
   },
 });

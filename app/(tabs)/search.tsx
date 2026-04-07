@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import { Search as SearchIcon, X, TrendingUp } from "lucide-react-native";
-import React, { useState, useEffect, useCallback } from "react";
+import { Search as SearchIcon, X, Cpu, Crosshair, Laugh, Newspaper, Briefcase, Trophy, HeartPulse, FlaskConical } from "lucide-react-native";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -26,14 +26,14 @@ const GRID_PADDING = 20;
 const TILE_WIDTH = (width - GRID_PADDING * 2 - GRID_GAP) / 2;
 
 const GENRE_TILES = [
-  { name: "Technology", colors: ["#1DB954", "#0d6b30"] as const },
-  { name: "True Crime", colors: ["#E13300", "#7a1c00"] as const },
-  { name: "Comedy", colors: ["#FF6B6B", "#a33030"] as const },
-  { name: "News", colors: ["#3b82f6", "#1e40af"] as const },
-  { name: "Business", colors: ["#8B5CF6", "#5721b5"] as const },
-  { name: "Sports", colors: ["#F59E0B", "#b45309"] as const },
-  { name: "Health", colors: ["#06B6D4", "#0e7490"] as const },
-  { name: "Science", colors: ["#EC4899", "#9d174d"] as const },
+  { name: "Technology", colors: ["#1DB954", "#0d6b30"] as const, Icon: Cpu },
+  { name: "True Crime", colors: ["#E13300", "#7a1c00"] as const, Icon: Crosshair },
+  { name: "Comedy", colors: ["#FF6B6B", "#a33030"] as const, Icon: Laugh },
+  { name: "News", colors: ["#3b82f6", "#1e40af"] as const, Icon: Newspaper },
+  { name: "Business", colors: ["#8B5CF6", "#5721b5"] as const, Icon: Briefcase },
+  { name: "Sports", colors: ["#F59E0B", "#b45309"] as const, Icon: Trophy },
+  { name: "Health", colors: ["#06B6D4", "#0e7490"] as const, Icon: HeartPulse },
+  { name: "Science", colors: ["#EC4899", "#9d174d"] as const, Icon: FlaskConical },
 ];
 
 export default function SearchScreen() {
@@ -88,6 +88,7 @@ export default function SearchScreen() {
         source={{ uri: item.artworkUrl600 }}
         style={styles.resultArtwork}
         contentFit="cover"
+        transition={200}
       />
       <View style={styles.resultInfo}>
         <Text style={styles.resultName} numberOfLines={2}>
@@ -96,9 +97,11 @@ export default function SearchScreen() {
         <Text style={styles.resultArtist} numberOfLines={1}>
           {item.artistName}
         </Text>
-        <Text style={styles.resultGenre} numberOfLines={1}>
-          {item.primaryGenreName}
-        </Text>
+        {item.primaryGenreName ? (
+          <View style={styles.resultGenreTag}>
+            <Text style={styles.resultGenre}>{item.primaryGenreName}</Text>
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -107,7 +110,7 @@ export default function SearchScreen() {
     <View style={styles.resultsContainer}>
       {[1, 2, 3, 4, 5].map((i) => (
         <View key={i} style={{ flexDirection: 'row', marginBottom: 16, gap: 12 }}>
-          <SkeletonLoader style={{ width: 72, height: 72, borderRadius: 10 }} />
+          <SkeletonLoader style={{ width: 72, height: 72, borderRadius: 12 }} />
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <SkeletonLoader style={{ height: 16, width: '80%', borderRadius: 4, marginBottom: 6 }} />
             <SkeletonLoader style={{ height: 14, width: '50%', borderRadius: 4, marginBottom: 4 }} />
@@ -133,16 +136,19 @@ export default function SearchScreen() {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search podcasts..."
+            placeholder="Podcasts, episodes, creators..."
             placeholderTextColor={Colors.secondaryText}
             value={query}
             onChangeText={setQuery}
             returnKeyType="search"
             onSubmitEditing={() => handleSearch(query)}
+            selectionColor={Colors.accent}
           />
           {query.length > 0 && (
             <Pressable onPress={() => setQuery("")} style={styles.clearButton}>
-              <X color={Colors.secondaryText} size={18} />
+              <View style={styles.clearButtonInner}>
+                <X color={Colors.black} size={12} />
+              </View>
             </Pressable>
           )}
         </View>
@@ -163,6 +169,7 @@ export default function SearchScreen() {
                       style={styles.recentItem}
                       onPress={() => setQuery(search)}
                     >
+                      <SearchIcon color={Colors.secondaryText} size={14} style={{ marginRight: 10 }} />
                       <Text style={styles.recentText}>{search}</Text>
                     </Pressable>
                     <Pressable
@@ -199,6 +206,7 @@ export default function SearchScreen() {
                       end={{ x: 1, y: 1 }}
                       style={styles.genreGradient}
                     >
+                      <genre.Icon color="rgba(255,255,255,0.25)" size={40} style={styles.genreIcon} />
                       <Text style={styles.genreText}>{genre.name}</Text>
                     </LinearGradient>
                   </Pressable>
@@ -256,12 +264,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: 14,
     marginHorizontal: 20,
-    marginTop: 12,
+    marginTop: 14,
     marginBottom: 8,
     paddingHorizontal: 14,
-    height: 46,
+    height: 48,
     borderWidth: 1,
     borderColor: Colors.whiteAlpha10,
   },
@@ -276,6 +284,14 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
+  },
+  clearButtonInner: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.secondaryText,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     flex: 1,
@@ -295,12 +311,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   recentItem: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   recentText: {
     fontSize: 16,
@@ -316,14 +334,19 @@ const styles = StyleSheet.create({
   },
   genreTile: {
     width: TILE_WIDTH,
-    height: 80,
-    borderRadius: 14,
+    height: 88,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   genreGradient: {
     flex: 1,
     justifyContent: 'flex-end',
-    padding: 14,
+    padding: 16,
+  },
+  genreIcon: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
   },
   genreText: {
     fontSize: 16,
@@ -338,34 +361,47 @@ const styles = StyleSheet.create({
   },
   resultItem: {
     flexDirection: "row",
-    marginBottom: 16,
-    gap: 12,
+    marginBottom: 14,
+    gap: 14,
+    padding: 10,
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.whiteAlpha05,
   },
   resultArtwork: {
-    width: 72,
-    height: 72,
-    borderRadius: 10,
-    backgroundColor: Colors.surface,
+    width: 68,
+    height: 68,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceLight,
   },
   resultInfo: {
     flex: 1,
     justifyContent: "center",
+    gap: 3,
   },
   resultName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600" as const,
     color: Colors.primaryText,
-    marginBottom: 3,
     letterSpacing: -0.2,
   },
   resultArtist: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.secondaryText,
-    marginBottom: 2,
+  },
+  resultGenreTag: {
+    backgroundColor: Colors.whiteAlpha05,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginTop: 2,
   },
   resultGenre: {
-    fontSize: 12,
-    color: Colors.secondaryText,
+    fontSize: 11,
+    color: Colors.accent,
+    fontWeight: '500',
   },
   emptyState: {
     alignItems: "center",

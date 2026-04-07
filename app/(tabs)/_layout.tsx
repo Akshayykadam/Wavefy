@@ -17,12 +17,12 @@ export default function TabLayout() {
         headerShown: false,
         tabBarStyle: {
           position: 'absolute',
-          backgroundColor: Platform.OS === 'ios' ? 'rgba(12,12,12,0.75)' : Colors.surface,
-          borderTopColor: Colors.whiteAlpha10,
+          backgroundColor: Platform.OS === 'ios' ? 'rgba(8,8,8,0.78)' : Colors.surface,
+          borderTopColor: Colors.whiteAlpha05,
           borderTopWidth: StyleSheet.hairlineWidth,
           paddingTop: 8,
           paddingBottom: Math.max(insets.bottom, 10),
-          height: 52 + Math.max(insets.bottom, 10),
+          height: 54 + Math.max(insets.bottom, 10),
           elevation: 0,
         },
         tabBarBackground: () =>
@@ -37,6 +37,7 @@ export default function TabLayout() {
           fontSize: 10,
           fontWeight: '600' as const,
           letterSpacing: -0.1,
+          marginTop: 2,
         },
       }}
     >
@@ -44,28 +45,28 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Home color={color} size={size - 2} />,
         }}
       />
       <Tabs.Screen
         name="discover"
         options={{
           title: "Discover",
-          tabBarIcon: ({ color, size }) => <Compass color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Compass color={color} size={size - 2} />,
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
           title: "Search",
-          tabBarIcon: ({ color, size }) => <Search color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Search color={color} size={size - 2} />,
         }}
       />
       <Tabs.Screen
         name="library"
         options={{
           title: "Library",
-          tabBarIcon: ({ color, size }) => <Library color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => <Library color={color} size={size - 2} />,
         }}
       />
       <Tabs.Screen
