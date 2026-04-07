@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Episode, Podcast } from '@/types/podcast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { parseRSS } from '@/utils/rss';
 
 const STORAGE_KEYS = {
   EPISODE: 'podcat_current_episode',
@@ -36,6 +37,7 @@ export interface EpisodeProgressData {
   episodeTitle?: string;
   episodeArtwork?: string;
   audioUrl?: string;
+  feedUrl?: string;
 }
 
 // Continuation Settings Types
@@ -211,6 +213,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         episodeTitle: episode.title,
         episodeArtwork: episode.artwork,
         audioUrl: episode.audioUrl,
+        feedUrl: podcast.feedUrl,
       };
 
       const newMap = { ...prev, [episode.id]: updated };
@@ -243,6 +246,28 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       })
       .sort((a, b) => new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime());
   }, [episodeProgressMap]);
+
+  // Get full listening history
+  const getListeningHistory = useCallback((): EpisodeProgressData[] => {
+    return Object.values(episodeProgressMap)
+      .sort((a, b) => new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime());
+  }, [episodeProgressMap]);
+
+  // Remove single item from history
+  const removeHistoryItem = useCallback((episodeId: string) => {
+    setEpisodeProgressMap(prev => {
+      const newMap = { ...prev };
+      delete newMap[episodeId];
+      saveEpisodeProgress(newMap);
+      return newMap;
+    });
+  }, []);
+
+  // Clear all history
+  const clearHistory = useCallback(() => {
+    setEpisodeProgressMap({});
+    saveEpisodeProgress({});
+  }, []);
 
   // Check if episode is completed
   const isEpisodeCompleted = useCallback((episodeId: string): boolean => {
@@ -365,6 +390,55 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       timestamp: new Date().toISOString(),
     });
   }, [currentEpisode, isPlayerReady, playbackRate]);
+
+  const resumeEpisode = useCallback(async (progressData: EpisodeProgressData) => {
+    setIsLoading(true);
+    try {
+      let finalEpisode: Episode | undefined;
+      let finalPodcast: Podcast | undefined;
+
+      // Fast-hydrate if we have feedUrl
+      if (progressData.feedUrl) {
+        try {
+          const episodes = await parseRSS(progressData.feedUrl);
+          setPodcastEpisodes(episodes);
+          finalEpisode = episodes.find(e => e.id === progressData.episodeId);
+        } catch (e) {
+          console.warn('Failed to hydrate from RSS', e);
+        }
+      }
+
+      if (!finalEpisode) {
+        finalEpisode = {
+          id: progressData.episodeId,
+          title: progressData.episodeTitle || 'Untitled',
+          description: '',
+          audioUrl: progressData.audioUrl || '',
+          pubDate: '',
+          duration: progressData.duration,
+          artwork: progressData.episodeArtwork || progressData.podcastArtwork || '',
+          podcastTitle: progressData.podcastTitle,
+        };
+      }
+
+      finalPodcast = {
+        collectionId: progressData.podcastId,
+        collectionName: progressData.podcastTitle || '',
+        artistName: '',
+        artworkUrl600: progressData.podcastArtwork || '',
+        artworkUrl100: progressData.podcastArtwork || '',
+        feedUrl: progressData.feedUrl || '',
+        trackCount: 0,
+        releaseDate: '',
+        primaryGenreName: '',
+        collectionViewUrl: '',
+      };
+
+      await playEpisode(finalEpisode, finalPodcast, progressData.position);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [playEpisode]);
 
   const togglePlayPause = useCallback(async () => {
     const state = await TrackPlayer.getPlaybackState();
@@ -701,6 +775,11 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     queue,
     playbackRate,
     playEpisode,
+    resumeEpisode,
+    getHalfPlayedEpisodes,
+    getListeningHistory,
+    removeHistoryItem,
+    clearHistory,
     togglePlayPause,
     seekTo,
     skipForward,
@@ -716,7 +795,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     cancelSleepTimer,
     // Episode Progress
     episodeProgressMap,
-    getHalfPlayedEpisodes,
     isEpisodeCompleted,
     // Continuation
     continuationSettings,

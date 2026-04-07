@@ -51,7 +51,11 @@ const getGreeting = (): string => {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { getHalfPlayedEpisodes, playEpisode } = usePlayer();
+  const {
+    getHalfPlayedEpisodes,
+    playEpisode,
+    resumeEpisode,
+  } = usePlayer();
 
   const halfPlayed = getHalfPlayedEpisodes();
   const { unreadCount } = useNotifications();
@@ -179,30 +183,10 @@ export default function HomeScreen() {
                     artwork={ep.podcastArtwork || ep.episodeArtwork || ''}
                     progress={ep.duration > 0 ? ep.position / ep.duration : 0}
                     onPress={() => {
-                      playEpisode(
-                        {
-                          id: ep.episodeId,
-                          title: ep.episodeTitle || 'Untitled',
-                          description: '',
-                          audioUrl: ep.audioUrl || '',
-                          pubDate: '',
-                          duration: ep.duration,
-                          artwork: ep.episodeArtwork || ep.podcastArtwork || '',
-                          podcastTitle: ep.podcastTitle,
-                        },
-                        {
-                          collectionId: -1,
-                          collectionName: ep.podcastTitle || '',
-                          artistName: '',
-                          artworkUrl600: ep.podcastArtwork || '',
-                          artworkUrl100: ep.podcastArtwork || '',
-                          feedUrl: '',
-                          trackCount: 0,
-                          releaseDate: '',
-                          primaryGenreName: '',
-                          collectionViewUrl: '',
-                        }
-                      );
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (resumeEpisode) {
+                        resumeEpisode(ep);
+                      }
                     }}
                   />
                 ))}

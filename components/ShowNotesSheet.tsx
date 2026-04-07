@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 80,
   },
   episodeTitle: {
     fontSize: 17,
