@@ -8,6 +8,7 @@ import { FollowedPodcastsProvider } from "@/contexts/FollowedPodcastsContext";
 import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PlaylistProvider } from "@/contexts/PlaylistContext";
+import { RecommendationProvider } from "@/contexts/RecommendationContext";
 import MiniPlayer from "@/components/MiniPlayer";
 import { DownloadProvider } from "@/contexts/DownloadContext";
 import TrackPlayer from 'react-native-track-player';
@@ -80,8 +81,10 @@ export default function RootLayout() {
               <PlayerProvider>
                 <NotificationProvider>
                   <PlaylistProvider>
-                    <RootLayoutNav />
-                    <MiniPlayer />
+                    <RecommendationProvider>
+                      <RootLayoutNav />
+                      <MiniPlayer />
+                    </RecommendationProvider>
                   </PlaylistProvider>
                 </NotificationProvider>
               </PlayerProvider>
