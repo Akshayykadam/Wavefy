@@ -6,9 +6,9 @@ import Svg, { Circle } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 
-const CARD_WIDTH = Dimensions.get('window').width * 0.38;
-const RING_SIZE = 52;
-const RING_STROKE = 3;
+const CARD_WIDTH = Dimensions.get('window').width * 0.36;
+const RING_SIZE = 48;
+const RING_STROKE = 2.5;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -28,6 +28,7 @@ export default function ContinueListeningCard({
   onPress,
 }: ContinueListeningCardProps) {
   const strokeDashoffset = RING_CIRCUMFERENCE * (1 - Math.min(progress, 1));
+  const progressPercent = Math.round(Math.min(progress, 1) * 100);
 
   return (
     <Pressable
@@ -38,7 +39,7 @@ export default function ContinueListeningCard({
       }}
     >
       <View style={styles.artworkContainer}>
-        <Image source={{ uri: artwork }} style={styles.artwork} contentFit="cover" />
+        <Image source={{ uri: artwork }} style={styles.artwork} contentFit="cover" transition={200} />
         {/* Circular progress ring */}
         <View style={styles.ringOverlay}>
           <Svg width={RING_SIZE} height={RING_SIZE}>
@@ -65,12 +66,13 @@ export default function ContinueListeningCard({
             />
           </Svg>
           <View style={styles.playOverlay}>
-            <Play color="#fff" size={16} fill="#fff" />
+            <Play color="#fff" size={14} fill="#fff" />
           </View>
         </View>
       </View>
       <Text style={styles.episodeTitle} numberOfLines={2}>{episodeTitle}</Text>
       <Text style={styles.podcastTitle} numberOfLines={1}>{podcastTitle}</Text>
+      <Text style={styles.progressText}>{progressPercent}% played</Text>
     </Pressable>
   );
 }
@@ -82,12 +84,12 @@ const styles = StyleSheet.create({
   },
   cardPressed: {
     opacity: 0.7,
-    transform: [{ scale: 0.97 }],
+    transform: [{ scale: 0.96 }],
   },
   artworkContainer: {
     width: CARD_WIDTH,
     height: CARD_WIDTH,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     marginBottom: 8,
     backgroundColor: Colors.surface,
@@ -104,7 +106,7 @@ const styles = StyleSheet.create({
     height: RING_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.65)',
     borderRadius: RING_SIZE / 2,
   },
   playOverlay: {
@@ -122,6 +124,13 @@ const styles = StyleSheet.create({
   podcastTitle: {
     fontSize: 11,
     color: Colors.secondaryText,
+    letterSpacing: -0.1,
+  },
+  progressText: {
+    fontSize: 10,
+    color: Colors.accent,
+    fontWeight: '600',
+    marginTop: 3,
     letterSpacing: -0.1,
   },
 });

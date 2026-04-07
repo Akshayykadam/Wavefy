@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, useRouter, usePathname, useRootNavigationState } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
+import * as Notifications from "expo-notifications";
+import { PlayerProvider } from "@/contexts/PlayerContext";
 import { FollowedPodcastsProvider } from "@/contexts/FollowedPodcastsContext";
 import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
@@ -11,8 +12,9 @@ import { PlaylistProvider } from "@/contexts/PlaylistContext";
 import { RecommendationProvider } from "@/contexts/RecommendationContext";
 import MiniPlayer from "@/components/MiniPlayer";
 import { DownloadProvider } from "@/contexts/DownloadContext";
-import TrackPlayer from 'react-native-track-player';
-import * as Linking from 'expo-linking';
+
+// Import background task definitions so they're registered at module level
+import '@/utils/backgroundNotifications';
 
 // Service is now registered in index.js for reliable Headless JS support
 
@@ -21,6 +23,25 @@ SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const router = useRouter();
+  const notificationResponseListener = useRef<{ remove(): void } | null>(null);
+
+  useEffect(() => {
+    // Handle notification taps to navigate to the podcast
+    notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+        if (data?.podcastId) {
+          router.push(`/podcast/${data.podcastId}` as any);
+        }
+      }
+    );
+
+    return () => {
+      notificationResponseListener.current?.remove();
+    };
+  }, [router]);
+
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

@@ -1,20 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { useFollowedPodcasts } from './FollowedPodcastsContext';
+import {
+  NotificationItem,
+  checkForNewEpisodes,
+  registerBackgroundFetch,
+  setupNotifications,
+} from '@/utils/backgroundNotifications';
 
 const STORAGE_KEY = 'wavefy_notifications';
-const LAST_SEEN_KEY = 'wavefy_last_seen_episodes';
-
-export interface NotificationItem {
-  id: string;
-  podcastId: number;
-  podcastTitle: string;
-  podcastArtwork: string;
-  episodeTitle: string;
-  episodeId: string;
-  timestamp: string;
-  read: boolean;
-}
 
 interface NotificationContextType {
   notifications: NotificationItem[];
@@ -42,16 +37,46 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { followedPodcasts } = useFollowedPodcasts();
+  const hasInitialized = useRef(false);
 
-  // Load notifications from storage
+  // Load stored notifications on mount
   useEffect(() => {
     loadNotifications();
   }, []);
 
-  // Check for new episodes when app opens or followed podcasts change
+  // Initialize notification system once
+  useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
+    (async () => {
+      // Set up notification permissions + Android channel
+      await setupNotifications();
+
+      // Register background fetch task
+      await registerBackgroundFetch();
+
+      // Configure how notifications are displayed when app is in foreground
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+          shouldShowBanner: true,
+          shouldShowList: true,
+        }),
+      });
+    })();
+  }, []);
+
+  // Check for new episodes when followed podcasts change
   useEffect(() => {
     if (followedPodcasts.length > 0) {
-      refreshNotifications();
+      // Small delay to avoid blocking startup
+      const timer = setTimeout(() => {
+        refreshNotifications();
+      }, 3000);
+      return () => clearTimeout(timer);
     }
   }, [followedPodcasts.length]);
 
@@ -79,65 +104,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     setIsRefreshing(true);
 
     try {
-      const lastSeenRaw = await AsyncStorage.getItem(LAST_SEEN_KEY);
-      const lastSeen: Record<string, string> = lastSeenRaw ? JSON.parse(lastSeenRaw) : {};
-      const newNotifications: NotificationItem[] = [];
+      const newItems = await checkForNewEpisodes();
 
-      for (const podcast of followedPodcasts.slice(0, 10)) {
-        try {
-          if (!podcast.feedUrl) continue;
-          const response = await fetch(podcast.feedUrl, {
-            headers: { 'User-Agent': 'Wavefy/1.0' },
-          });
-          const text = await response.text();
-
-          // Get first item from RSS
-          const itemMatch = text.match(/<item[^>]*>([\s\S]*?)<\/item>/i);
-          if (!itemMatch) continue;
-
-          const item = itemMatch[1];
-          const titleMatch = item.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-          const guidMatch = item.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i);
-          const pubDateMatch = item.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i);
-
-          const episodeTitle = titleMatch
-            ? titleMatch[1].replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').replace(/<[^>]*>/g, '').trim()
-            : '';
-          const episodeId = guidMatch
-            ? guidMatch[1].replace(/<[^>]*>/g, '').trim()
-            : '';
-
-          if (!episodeId || !episodeTitle) continue;
-
-          const podcastKey = String(podcast.collectionId);
-          if (lastSeen[podcastKey] === episodeId) continue;
-
-          // New episode found
-          lastSeen[podcastKey] = episodeId;
-          newNotifications.push({
-            id: `notif-${podcastKey}-${episodeId}`,
-            podcastId: podcast.collectionId,
-            podcastTitle: podcast.collectionName,
-            podcastArtwork: podcast.artworkUrl600 || podcast.artworkUrl100,
-            episodeTitle,
-            episodeId,
-            timestamp: pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString(),
-            read: false,
-          });
-        } catch (e) {
-          // Skip failed feeds silently
-        }
-      }
-
-      await AsyncStorage.setItem(LAST_SEEN_KEY, JSON.stringify(lastSeen));
-
-      if (newNotifications.length > 0) {
-        setNotifications(prev => {
-          const merged = [...newNotifications, ...prev].slice(0, 50); // Keep last 50
-          saveNotifications(merged);
-          return merged;
-        });
-      }
+      // Reload all notifications from storage (background task may have added some too)
+      const storedRaw = await AsyncStorage.getItem(STORAGE_KEY);
+      const allNotifs: NotificationItem[] = storedRaw ? JSON.parse(storedRaw) : [];
+      setNotifications(allNotifs);
     } catch (e) {
       console.error('Failed to refresh notifications:', e);
     } finally {

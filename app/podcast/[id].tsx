@@ -266,7 +266,7 @@ export default function PodcastDetailScreen() {
                     <View style={styles.episodeLeft}>
                       <View style={[styles.playIconContainer, isThisPlaying && styles.playIconActive]}>
                         {isThisPlaying ? (
-                          <Pause color={Colors.accent} size={14} fill={Colors.accent} />
+                          <Pause color="#fff" size={14} fill="#fff" />
                         ) : (
                           <Play color={Colors.accent} size={14} fill={Colors.accent} />
                         )}

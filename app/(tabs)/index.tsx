@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import { Bell, Play, ChevronRight, ListMusic, Sun, Sunset, Moon, Sparkles, Zap } from "lucide-react-native";
-import React, { useState, useCallback } from "react";
+import { Bell, Play, ChevronRight, ListMusic, Sparkles, Zap } from "lucide-react-native";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,10 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
-import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { Podcast } from "@/types/podcast";
@@ -57,9 +55,9 @@ const fetchPodcastsByCategory = async (category: string): Promise<Podcast[]> => 
 
 const getGreeting = () => {
   const hour = new Date().getHours();
-  if (hour < 12) return { text: "Good Morning" };
-  if (hour < 18) return { text: "Good Afternoon" };
-  return { text: "Good Evening" };
+  if (hour < 12) return "Good Morning";
+  if (hour < 18) return "Good Afternoon";
+  return "Good Evening";
 };
 
 export default function HomeScreen() {
@@ -161,8 +159,7 @@ export default function HomeScreen() {
     </View>
   );
 
-  const heroEpisode = halfPlayed.length > 0 ? halfPlayed[0] : null;
-  const remainingHalfPlayed = halfPlayed.length > 1 ? halfPlayed.slice(1) : [];
+  const remainingHalfPlayed = halfPlayed;
 
   const renderMoodChips = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moodScroll} style={styles.moodScrollContainer}>
@@ -202,50 +199,13 @@ export default function HomeScreen() {
     )
   };
 
-  const renderHeroCard = () => {
-    if (!heroEpisode) return null;
-    return (
-      <View style={styles.heroWrapper}>
-        <Text style={styles.sectionTitle}>Jump Back In</Text>
-        <Pressable
-          style={styles.heroContainer}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            if (resumeEpisode) resumeEpisode(heroEpisode);
-          }}
-        >
-          <Image
-            source={{ uri: heroEpisode.episodeArtwork || heroEpisode.podcastArtwork || '' }}
-            style={{ width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 }}
-            contentFit="cover"
-            transition={200}
-          />
-          <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={styles.heroOverlay}>
-            <View style={styles.heroContentInner}>
-              <View style={{ flex: 1, marginRight: 16 }}>
-                <Text style={styles.heroTitle} numberOfLines={2}>{heroEpisode.episodeTitle || 'Untitled'}</Text>
-                <Text style={styles.heroSubtitle} numberOfLines={1}>{heroEpisode.podcastTitle}</Text>
-              </View>
-              <View style={styles.heroPlayBtn}>
-                <Play size={22} color={Colors.black} fill={Colors.black} style={{ marginLeft: 3 }} />
-              </View>
-            </View>
-            <View style={styles.heroProgress}>
-              <View style={[styles.heroProgressBar, { width: `${(heroEpisode.position / Math.max(heroEpisode.duration, 1)) * 100}%` }]} />
-            </View>
-          </BlurView>
-        </Pressable>
-      </View>
-    );
-  };
 
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <View style={styles.header}>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>{getGreeting().text}</Text>
-            {getGreeting().icon}
+            <Text style={styles.title}>{getGreeting()}</Text>
           </View>
           <Pressable
             onPress={() => {
@@ -270,8 +230,6 @@ export default function HomeScreen() {
           {/* Mood Chips */}
           {renderMoodChips()}
 
-          {/* Hero Row */}
-          {renderHeroCard()}
 
           {/* Up Next Preview */}
           {renderUpNextBanner()}
@@ -285,7 +243,7 @@ export default function HomeScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalScroll}
               >
-                {remainingHalfPlayed.slice(0, 8).map((ep, index) => (
+                {remainingHalfPlayed.map((ep, index) => (
                   <ContinueListeningCard
                     key={`continue-${ep.episodeId}-${index}`}
                     episodeTitle={ep.episodeTitle || 'Untitled'}
@@ -542,60 +500,6 @@ const styles = StyleSheet.create({
   },
   moodChipTextActive: {
     color: '#fff',
-  },
-  heroWrapper: {
-    marginVertical: 8,
-  },
-  heroContainer: {
-    marginHorizontal: 20,
-    height: 180,
-    borderRadius: 22,
-    backgroundColor: Colors.surface,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.whiteAlpha05,
-  },
-  heroOverlay: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'flex-end',
-  },
-  heroContentInner: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  heroTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  heroSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
-    fontWeight: '500',
-  },
-  heroPlayBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: Colors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  heroProgress: {
-    height: 4,
-    backgroundColor: Colors.whiteAlpha20,
-    width: '100%',
-  },
-  heroProgressBar: {
-    height: '100%',
-    backgroundColor: Colors.accent,
   },
   upNextBanner: {
     flexDirection: 'row',

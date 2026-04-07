@@ -227,7 +227,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* App version */}
-          <Text style={styles.versionText}>CastBee v1.0.0</Text>
+          <Text style={styles.versionText}>CastBee v2.0.0</Text>
         </ScrollView>
       </SafeAreaView>
     </View>

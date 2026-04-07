@@ -133,6 +133,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   const initialSeekPosition = useRef<number | null>(null);
   const isRestoring = useRef(true);
   const hasUserInteracted = useRef(false);
+  const playRequestId = useRef<number>(0);
 
   // Initialize Player
   useEffect(() => {
@@ -354,6 +355,9 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   const playEpisode = useCallback(async (episode: Episode, podcast: Podcast, seekPosition?: number) => {
     if (!isPlayerReady) return;
 
+    const currentReq = Date.now();
+    playRequestId.current = currentReq;
+
     hasUserInteracted.current = true;
     sleepTimerTriggeredRef.current = false; // Reset sleep timer flag
 
@@ -366,8 +370,13 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     setCurrentEpisode(episode);
     setCurrentPodcast(podcast);
 
-    await TrackPlayer.reset();
-    await TrackPlayer.add({
+    try {
+      await TrackPlayer.pause();
+    } catch (e) {}
+
+    if (playRequestId.current !== currentReq) return;
+
+    await TrackPlayer.load({
       id: String(episode.id),
       url: episode.localUri || episode.audioUrl,
       title: episode.title,
@@ -375,10 +384,14 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       artwork: episode.artwork || podcast.artworkUrl600,
     });
 
+    if (playRequestId.current !== currentReq) return;
+
     // Seek to position if resuming
     if (seekPosition && seekPosition > 0) {
       await TrackPlayer.seekTo(seekPosition);
     }
+
+    if (playRequestId.current !== currentReq) return;
 
     await TrackPlayer.play();
     await TrackPlayer.setRate(playbackRate);

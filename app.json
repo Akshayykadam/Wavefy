@@ -2,7 +2,7 @@
   "expo": {
     "name": "Wavefy",
     "slug": "wavefy",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "wavefy",
@@ -32,7 +32,9 @@
       "permissions": [
         "RECORD_AUDIO",
         "FOREGROUND_SERVICE",
-        "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+        "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "RECEIVE_BOOT_COMPLETED",
+        "POST_NOTIFICATIONS"
       ]
     },
     "web": {
@@ -46,7 +48,15 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#FF2D55",
+          "defaultChannel": "new-episodes"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
