@@ -70,8 +70,8 @@ export default function ContinueListeningCard({
           </View>
         </View>
       </View>
-      <Text style={styles.episodeTitle} numberOfLines={2}>{episodeTitle}</Text>
-      <Text style={styles.podcastTitle} numberOfLines={1}>{podcastTitle}</Text>
+      <Text style={styles.episodeTitle} numberOfLines={2} textBreakStrategy="simple">{episodeTitle}</Text>
+      <Text style={styles.podcastTitle} numberOfLines={1} textBreakStrategy="simple">{podcastTitle}</Text>
       <Text style={styles.progressText}>{progressPercent}% played</Text>
     </Pressable>
   );

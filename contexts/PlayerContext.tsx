@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   RATE: 'podcat_playback_rate',
   EPISODE_PROGRESS: 'wavefy_episode_progress',
   CONTINUATION_SETTINGS: 'wavefy_continuation_settings',
+  QUEUE: 'wavefy_queue',
 };
 
 // Episode Progress Types
@@ -143,9 +144,28 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       loadState();
       loadEpisodeProgress();
       loadContinuationSettings();
+      loadQueue();
     };
     init();
   }, []);
+
+  const loadQueue = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(STORAGE_KEYS.QUEUE);
+      if (stored) {
+        setQueue(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Failed to load queue:', error);
+    }
+  };
+
+  // Save Queue changes to AsyncStorage
+  useEffect(() => {
+    if (isPlayerReady) {
+      AsyncStorage.setItem(STORAGE_KEYS.QUEUE, JSON.stringify(queue)).catch(() => {});
+    }
+  }, [queue, isPlayerReady]);
 
   // Load Episode Progress from AsyncStorage
   const loadEpisodeProgress = async () => {

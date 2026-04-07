@@ -15,14 +15,21 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.accent,
         tabBarInactiveTintColor: Colors.secondaryText,
         headerShown: false,
-        tabBarStyle: {
+        tabBarStyle: Platform.OS === 'ios' ? {
           position: 'absolute',
-          backgroundColor: Platform.OS === 'ios' ? 'rgba(8,8,8,0.78)' : Colors.surface,
+          backgroundColor: 'rgba(8,8,8,0.78)',
           borderTopColor: Colors.whiteAlpha05,
           borderTopWidth: StyleSheet.hairlineWidth,
           paddingTop: 8,
           paddingBottom: Math.max(insets.bottom, 10),
           height: 54 + Math.max(insets.bottom, 10),
+        } : {
+          backgroundColor: Colors.surface,
+          borderTopColor: Colors.whiteAlpha05,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          paddingTop: 8,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          minHeight: 60 + insets.bottom,
           elevation: 0,
         },
         tabBarBackground: () =>

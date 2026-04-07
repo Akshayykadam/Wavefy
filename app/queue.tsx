@@ -103,8 +103,8 @@ export default function QueueScreen() {
         contentFit="cover"
       />
       <View style={styles.queueInfo}>
-        <Text style={styles.queueTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.queueSubtitle} numberOfLines={1}>
+        <Text style={styles.queueTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
+        <Text style={styles.queueSubtitle} numberOfLines={1} textBreakStrategy="simple">
           {item.podcastTitle || currentPodcast?.collectionName}
           {item.duration > 0 ? ` · ${formatDuration(item.duration)}` : ''}
         </Text>
@@ -135,8 +135,8 @@ export default function QueueScreen() {
         contentFit="cover"
       />
       <View style={styles.queueInfo}>
-        <Text style={styles.queueTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.queueSubtitle} numberOfLines={1}>
+        <Text style={styles.queueTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
+        <Text style={styles.queueSubtitle} numberOfLines={1} textBreakStrategy="simple">
           {currentPodcast?.collectionName}
           {item.duration > 0 ? ` · ${formatDuration(item.duration)}` : ''}
         </Text>
@@ -172,8 +172,18 @@ export default function QueueScreen() {
         </View>
 
         <FlatList
-          data={[]} // Dummy — we use ListHeaderComponent + sections
-          renderItem={null}
+          data={queue.length > 0 ? queue : upNextEpisodes}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
+          renderItem={queue.length > 0 ? renderQueueItem : renderUpNextItem as any}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Music2 color={Colors.secondaryText} size={48} />
+              <Text style={styles.emptyTitle}>Your queue is empty</Text>
+              <Text style={styles.emptySubtitle}>
+                Add episodes from any podcast to build your listening queue
+              </Text>
+            </View>
+          }
           ListHeaderComponent={
             <>
               {/* Now Playing */}
@@ -187,10 +197,10 @@ export default function QueueScreen() {
                       contentFit="cover"
                     />
                     <View style={styles.nowPlayingInfo}>
-                      <Text style={styles.nowPlayingTitle} numberOfLines={2}>
+                      <Text style={styles.nowPlayingTitle} numberOfLines={2} textBreakStrategy="simple">
                         {currentEpisode.title}
                       </Text>
-                      <Text style={styles.nowPlayingSubtitle} numberOfLines={1}>
+                      <Text style={styles.nowPlayingSubtitle} numberOfLines={1} textBreakStrategy="simple">
                         {currentPodcast.collectionName}
                       </Text>
                     </View>
@@ -205,37 +215,11 @@ export default function QueueScreen() {
                 </View>
               )}
 
-              {/* Queue */}
-              {queue.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Up Next · {queue.length} episodes</Text>
-                  {queue.map((item, index) => (
-                    <View key={`q-${item.id}-${index}`}>
-                      {renderQueueItem({ item, index })}
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* From This Podcast */}
-              {upNextEpisodes.length > 0 && queue.length === 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>From This Podcast</Text>
-                  {upNextEpisodes.map((item, index) => (
-                    <View key={`up-${item.id}-${index}`}>
-                      {renderUpNextItem({ item, index } as any)}
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* Empty state */}
-              {queue.length === 0 && upNextEpisodes.length === 0 && (
-                <View style={styles.emptyState}>
-                  <Music2 color={Colors.secondaryText} size={48} />
-                  <Text style={styles.emptyTitle}>Your queue is empty</Text>
-                  <Text style={styles.emptySubtitle}>
-                    Add episodes from any podcast to build your listening queue
+              {/* Section Title for List */}
+              {(queue.length > 0 || upNextEpisodes.length > 0) && (
+                <View style={[styles.section, { paddingBottom: 0 }]}>
+                  <Text style={styles.sectionTitle}>
+                    {queue.length > 0 ? `Up Next · ${queue.length} episodes` : 'From This Podcast'}
                   </Text>
                 </View>
               )}

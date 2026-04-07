@@ -188,7 +188,7 @@ export default function PlayerScreen() {
             <ChevronDown color={Colors.primaryText} size={32} />
           </Pressable>
 
-          <Text style={styles.headerTitle} numberOfLines={1}>
+          <Text style={styles.headerTitle} numberOfLines={1} textBreakStrategy="simple">
             Now Playing
           </Text>
 
@@ -244,7 +244,7 @@ export default function PlayerScreen() {
           </View>
 
           <View style={styles.info}>
-            <Text style={styles.episodeTitle} numberOfLines={2}>
+            <Text style={styles.episodeTitle} numberOfLines={2} textBreakStrategy="simple">
               {currentEpisode.title}
             </Text>
             <Pressable onPress={() => {
@@ -252,7 +252,7 @@ export default function PlayerScreen() {
                 router.push(`/podcast/${currentPodcast.collectionId}`);
               }
             }}>
-              <Text style={styles.podcastName} numberOfLines={1}>
+              <Text style={styles.podcastName} numberOfLines={1} textBreakStrategy="simple">
                 {currentPodcast.collectionName}
               </Text>
             </Pressable>
@@ -332,11 +332,11 @@ export default function PlayerScreen() {
                 </Text>
               </View>
               {queue.length > 0 ? (
-                <Text style={styles.upNextEpisode} numberOfLines={1}>
+                <Text style={styles.upNextEpisode} numberOfLines={1} textBreakStrategy="simple">
                   {queue[0].title}
                 </Text>
               ) : upNextEpisodes.length > 0 ? (
-                <Text style={styles.upNextEpisode} numberOfLines={1}>
+                <Text style={styles.upNextEpisode} numberOfLines={1} textBreakStrategy="simple">
                   {upNextEpisodes[0].title}
                 </Text>
               ) : null}
@@ -360,6 +360,7 @@ export default function PlayerScreen() {
               <Text
                 style={styles.descriptionText}
                 numberOfLines={3}
+                textBreakStrategy="simple"
               >
                 {currentEpisode.description}
               </Text>
@@ -377,9 +378,10 @@ export default function PlayerScreen() {
         animationType="slide"
         onRequestClose={() => setMenuVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setMenuVisible(false)}>
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.modalOverlay} />
-        </TouchableWithoutFeedback>
+        </Pressable>
         <View style={styles.modalContent}>
           <View style={styles.dragHandle} />
           <View style={styles.modalHeader}>
@@ -503,9 +505,10 @@ export default function PlayerScreen() {
         animationType="slide"
         onRequestClose={() => setPlaylistModalVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setPlaylistModalVisible(false)}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={() => setPlaylistModalVisible(false)}>
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.modalOverlay} />
-        </TouchableWithoutFeedback>
+        </Pressable>
         <View style={styles.playlistModalContent}>
           <View style={styles.dragHandle} />
           <View style={styles.modalHeader}>
@@ -829,8 +832,8 @@ const styles = StyleSheet.create({
 
   // Modal styles
   modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   modalContent: {
     backgroundColor: Colors.surface,

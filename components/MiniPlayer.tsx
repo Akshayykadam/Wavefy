@@ -8,6 +8,7 @@ import {
   Pressable,
   ActivityIndicator,
   Platform,
+  Animated,
 } from "react-native";
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
@@ -30,6 +31,17 @@ export default function MiniPlayer() {
     duration,
     skipForward,
   } = usePlayer();
+
+  const animatedWidth = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    const progressPerc = duration > 0 ? (position / duration) * 100 : 0;
+    Animated.timing(animatedWidth, {
+      toValue: progressPerc,
+      duration: 1000,
+      useNativeDriver: false,
+    }).start();
+  }, [position, duration]);
 
   if (!currentEpisode || !currentPodcast) {
     return null;
@@ -62,6 +74,13 @@ export default function MiniPlayer() {
       ) : null}
       {/* Dark overlay to reduce transparency, solid surface for Android */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(10,10,10,0.78)' : Colors.surface }]} />
+      
+      <View style={styles.progressBarContainer}>
+        <Animated.View style={[styles.progressBar, { width: animatedWidth.interpolate({
+          inputRange: [0, 100],
+          outputRange: ['0%', '100%']
+        }) }]} />
+      </View>
 
       <View style={styles.content}>
         {/* Artwork with glow */}
@@ -75,10 +94,10 @@ export default function MiniPlayer() {
         </View>
 
         <View style={styles.info}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={styles.title} numberOfLines={1} textBreakStrategy="simple">
             {currentEpisode.title}
           </Text>
-          <Text style={styles.subtitle} numberOfLines={1}>
+          <Text style={styles.subtitle} numberOfLines={1} textBreakStrategy="simple">
             {currentPodcast.collectionName}
           </Text>
         </View>

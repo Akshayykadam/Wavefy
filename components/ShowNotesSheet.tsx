@@ -9,6 +9,7 @@ import {
   Linking,
 } from 'react-native';
 import { X, ExternalLink, Calendar, Clock } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
 import Colors from '@/constants/colors';
 
 interface ShowNotesSheetProps {
@@ -91,8 +92,9 @@ export default function ShowNotesSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <View />
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
+        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.overlay} />
       </Pressable>
       <View style={styles.sheet}>
         <View style={styles.dragHandle} />
@@ -135,7 +137,11 @@ export default function ShowNotesSheet({
 
           {/* Description */}
           {plainText ? (
-            <Text style={styles.descriptionText}>{plainText}</Text>
+            plainText.split('\n').map((paragraph, index) => (
+              <Text key={`p-${index}`} style={styles.descriptionText}>
+                {paragraph}
+              </Text>
+            ))
           ) : (
             <Text style={styles.emptyText}>No show notes available for this episode.</Text>
           )}
@@ -166,8 +172,8 @@ export default function ShowNotesSheet({
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   sheet: {
     backgroundColor: Colors.surface,
@@ -242,10 +248,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   descriptionText: {
-    fontSize: 15,
-    color: Colors.primaryText,
+    fontSize: 16,
     lineHeight: 24,
-    letterSpacing: -0.1,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   emptyText: {
     fontSize: 14,

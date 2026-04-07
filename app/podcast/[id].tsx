@@ -40,6 +40,75 @@ const formatDate = (dateString: string): string => {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
+const MemoizedEpisodeRow = React.memo(({ 
+  episode, 
+  podcast, 
+  isCurrentEpisode, 
+  isThisPlaying,
+  downloaded,
+  progress,
+  onPlay,
+  onDownload
+}: { 
+  episode: Episode; 
+  podcast: Podcast; 
+  isCurrentEpisode: boolean; 
+  isThisPlaying: boolean;
+  downloaded: boolean;
+  progress: number;
+  onPlay: () => void;
+  onDownload: () => void;
+}) => {
+  const isDownloading = progress > 0 && progress < 100;
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.episodeRow, pressed && { backgroundColor: Colors.surface }]}
+      onPress={onPlay}
+    >
+      <View style={styles.episodeLeft}>
+        <View style={[styles.playIconContainer, isThisPlaying && styles.playIconActive]}>
+          {isThisPlaying ? (
+            <Pause color="#fff" size={14} fill="#fff" />
+          ) : (
+            <Play color={Colors.accent} size={14} fill={Colors.accent} />
+          )}
+        </View>
+        <View style={styles.episodeInfo}>
+          <Text 
+            style={[styles.episodeTitle, isCurrentEpisode && { color: Colors.accent }]} 
+            numberOfLines={2}
+            textBreakStrategy="simple"
+          >
+            {episode.title}
+          </Text>
+          <View style={styles.episodeMeta}>
+            <Text style={styles.episodeMetaText}>
+              {formatDate(episode.pubDate)}
+            </Text>
+            <Text style={styles.episodeMetaText}> · </Text>
+            <Text style={styles.episodeMetaText}>
+              {formatDuration(episode.duration)}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <Pressable
+        style={styles.downloadButton}
+        onPress={onDownload}
+        disabled={downloaded || isDownloading}
+      >
+        {isDownloading ? (
+          <ActivityIndicator size="small" color={Colors.secondaryText} />
+        ) : downloaded ? (
+          <Check size={18} color={Colors.accent} />
+        ) : (
+          <Download size={18} color={Colors.secondaryText} />
+        )}
+      </Pressable>
+    </Pressable>
+  );
+});
+
 export default function PodcastDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -140,7 +209,9 @@ export default function PodcastDetailScreen() {
           </Pressable>
         </View>
 
-        <Animated.ScrollView
+        <Animated.FlatList
+          data={episodes}
+          keyExtractor={(item: Episode) => item.id.toString()}
           style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
@@ -149,165 +220,137 @@ export default function PodcastDetailScreen() {
             { useNativeDriver: true }
           )}
           scrollEventThrottle={16}
-        >
-          <Animated.View style={[styles.artworkContainer, {
-            transform: [{
-              translateY: scrollY.interpolate({
-                inputRange: [-100, 0, 100],
-                outputRange: [-50, 0, 0],
-                extrapolate: 'clamp'
-              })
-            }, {
-              scale: scrollY.interpolate({
-                inputRange: [-100, 0, 100],
-                outputRange: [1.2, 1, 1],
-                extrapolate: 'clamp'
-              })
-            }]
-          }]}>
-            <View style={styles.artworkShadow}>
-              <Image
-                source={{ uri: podcast.artworkUrl600 }}
-                style={styles.artwork}
-                contentFit="cover"
-              />
-            </View>
-          </Animated.View>
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          ListHeaderComponent={
+            <>
+              <Animated.View style={[styles.artworkContainer, {
+                transform: [{
+                  translateY: scrollY.interpolate({
+                    inputRange: [-100, 0, 100],
+                    outputRange: [-50, 0, 0],
+                    extrapolate: 'clamp'
+                  })
+                }, {
+                  scale: scrollY.interpolate({
+                    inputRange: [-100, 0, 100],
+                    outputRange: [1.2, 1, 1],
+                    extrapolate: 'clamp'
+                  })
+                }]
+              }]}>
+                <View style={styles.artworkShadow}>
+                  <Image
+                    source={{ uri: podcast.artworkUrl600 }}
+                    style={styles.artwork}
+                    contentFit="cover"
+                  />
+                </View>
+              </Animated.View>
 
-          <Text style={styles.podcastName}>{podcast.collectionName}</Text>
-          <Text style={styles.artistName}>{podcast.artistName}</Text>
+              <Text style={styles.podcastName}>{podcast.collectionName}</Text>
+              <Text style={styles.artistName}>{podcast.artistName}</Text>
 
-          <View style={styles.actions}>
-            <Pressable
-              style={[
-                styles.followButton,
-                isFollowing(podcast.collectionId) && styles.followButtonActive
-              ]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                toggleFollow(podcast);
-              }}
-            >
-              <Heart
-                color={isFollowing(podcast.collectionId) ? Colors.accent : Colors.primaryText}
-                size={18}
-                fill={isFollowing(podcast.collectionId) ? Colors.accent : "transparent"}
-              />
-              <Text style={[
-                styles.followButtonText,
-                isFollowing(podcast.collectionId) && styles.followButtonTextActive
-              ]}>
-                {isFollowing(podcast.collectionId) ? "Following" : "Follow"}
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Play Latest CTA */}
-          {latestEpisode && (
-            <Pressable
-              style={({ pressed }) => [styles.playLatestButton, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                if (isLatestPlaying) {
-                  togglePlayPause();
-                } else {
-                  playEpisode(latestEpisode, podcast);
-                }
-              }}
-            >
-              {isLatestPlaying ? (
-                <Pause color="#fff" size={20} fill="#fff" />
-              ) : (
-                <Play color="#fff" size={20} fill="#fff" />
-              )}
-              <Text style={styles.playLatestText}>
-                {isLatestPlaying ? "Pause" : "Play Latest Episode"}
-              </Text>
-            </Pressable>
-          )}
-
-          <View style={styles.episodesSection}>
-            <Text style={styles.sectionTitle}>
-              Episodes{episodes.length > 0 ? ` (${episodes.length})` : ''}
-            </Text>
-
-            {isEpisodesLoading ? (
-              <View>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, width: '100%' }}>
-                    <SkeletonLoader style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
-                    <View style={{ flex: 1 }}>
-                      <SkeletonLoader style={{ height: 16, width: '80%', marginBottom: 6 }} />
-                      <SkeletonLoader style={{ height: 12, width: '55%' }} />
-                    </View>
-                  </View>
-                ))}
+              <View style={styles.actions}>
+                <Pressable
+                  style={[
+                    styles.followButton,
+                    isFollowing(podcast.collectionId) && styles.followButtonActive
+                  ]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    toggleFollow(podcast);
+                  }}
+                >
+                  <Heart
+                    color={isFollowing(podcast.collectionId) ? Colors.accent : Colors.primaryText}
+                    size={18}
+                    fill={isFollowing(podcast.collectionId) ? Colors.accent : "transparent"}
+                  />
+                  <Text style={[
+                    styles.followButtonText,
+                    isFollowing(podcast.collectionId) && styles.followButtonTextActive
+                  ]}>
+                    {isFollowing(podcast.collectionId) ? "Following" : "Follow"}
+                  </Text>
+                </Pressable>
               </View>
-            ) : episodes.length === 0 ? (
-              <Text style={styles.noEpisodes}>No episodes available</Text>
-            ) : (
-              episodes.map((episode) => {
-                const isCurrentEpisode = currentEpisode?.id === episode.id;
-                const isThisPlaying = isCurrentEpisode && isPlaying;
-                const downloaded = isDownloaded(episode.id);
-                const progress = getDownloadProgress(episode.id);
-                const isDownloading = progress > 0 && progress < 100;
 
-                return (
-                  <Pressable
-                    key={episode.id}
-                    style={({ pressed }) => [styles.episodeRow, pressed && { backgroundColor: Colors.surface }]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                      if (isCurrentEpisode) togglePlayPause();
-                      else playEpisode(episode, podcast);
-                    }}
-                  >
-                    <View style={styles.episodeLeft}>
-                      <View style={[styles.playIconContainer, isThisPlaying && styles.playIconActive]}>
-                        {isThisPlaying ? (
-                          <Pause color="#fff" size={14} fill="#fff" />
-                        ) : (
-                          <Play color={Colors.accent} size={14} fill={Colors.accent} />
-                        )}
-                      </View>
-                      <View style={styles.episodeInfo}>
-                        <Text style={[styles.episodeTitle, isCurrentEpisode && { color: Colors.accent }]} numberOfLines={2}>
-                          {episode.title}
-                        </Text>
-                        <View style={styles.episodeMeta}>
-                          <Text style={styles.episodeMetaText}>
-                            {formatDate(episode.pubDate)}
-                          </Text>
-                          <Text style={styles.episodeMetaText}> · </Text>
-                          <Text style={styles.episodeMetaText}>
-                            {formatDuration(episode.duration)}
-                          </Text>
+              {/* Play Latest CTA */}
+              {latestEpisode && (
+                <Pressable
+                  style={({ pressed }) => [styles.playLatestButton, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                    if (isLatestPlaying) {
+                      togglePlayPause();
+                    } else {
+                      playEpisode(latestEpisode, podcast);
+                    }
+                  }}
+                >
+                  {isLatestPlaying ? (
+                    <Pause color="#fff" size={20} fill="#fff" />
+                  ) : (
+                    <Play color="#fff" size={20} fill="#fff" />
+                  )}
+                  <Text style={styles.playLatestText}>
+                    {isLatestPlaying ? "Pause" : "Play Latest Episode"}
+                  </Text>
+                </Pressable>
+              )}
+
+              <View style={[styles.episodesSection, { paddingBottom: 0 }]}>
+                <Text style={styles.sectionTitle}>
+                  Episodes{episodes.length > 0 ? ` (${episodes.length})` : ''}
+                </Text>
+
+                {isEpisodesLoading ? (
+                  <View>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, width: '100%' }}>
+                        <SkeletonLoader style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                        <View style={{ flex: 1 }}>
+                          <SkeletonLoader style={{ height: 16, width: '80%', marginBottom: 6 }} />
+                          <SkeletonLoader style={{ height: 12, width: '55%' }} />
                         </View>
                       </View>
-                    </View>
-                    <Pressable
-                      style={styles.downloadButton}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        if (!downloaded && !isDownloading) downloadEpisode(episode, podcast);
-                      }}
-                      disabled={downloaded || isDownloading}
-                    >
-                      {isDownloading ? (
-                        <ActivityIndicator size="small" color={Colors.secondaryText} />
-                      ) : downloaded ? (
-                        <Check size={18} color={Colors.accent} />
-                      ) : (
-                        <Download size={18} color={Colors.secondaryText} />
-                      )}
-                    </Pressable>
-                  </Pressable>
-                );
-              })
-            )}
-          </View>
-        </Animated.ScrollView>
+                    ))}
+                  </View>
+                ) : episodes.length === 0 ? (
+                  <Text style={styles.noEpisodes}>No episodes available</Text>
+                ) : null}
+              </View>
+            </>
+          }
+          renderItem={({ item: episode }) => {
+            const isCurrentEpisode = currentEpisode?.id === episode.id;
+            const isThisPlaying = isCurrentEpisode && isPlaying;
+            const downloaded = isDownloaded(episode.id);
+            const progress = getDownloadProgress(episode.id);
+            
+            return (
+              <MemoizedEpisodeRow 
+                episode={episode}
+                podcast={podcast}
+                isCurrentEpisode={isCurrentEpisode}
+                isThisPlaying={isThisPlaying}
+                downloaded={downloaded}
+                progress={progress}
+                onPlay={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  if (isCurrentEpisode) togglePlayPause();
+                  else playEpisode(episode, podcast);
+                }}
+                onDownload={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (!downloaded && !(progress > 0 && progress < 100)) downloadEpisode(episode, podcast);
+                }}
+              />
+            );
+          }}
+        />
       </SafeAreaView>
     </View>
   );

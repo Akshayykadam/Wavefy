@@ -65,7 +65,13 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
         const pubDateMatch = item.match(/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i);
         const durationMatch = item.match(/<itunes:duration[^>]*>([\s\S]*?)<\/itunes:duration>/i);
         const guidMatch = item.match(/<guid[^>]*>([\s\S]*?)<\/guid>/i);
-        const title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, "").trim() : "Unknown Episode";
+        let rawTitle = titleMatch ? titleMatch[1] : "Unknown Episode";
+        const title = rawTitle.replace(/<!\[CDATA\[.*?\]\]>|<!\[CDATA\[|\]\]>/g, (match) => {
+           if (match.startsWith("<![CDATA[") && match.endsWith("]]>")) {
+               return match.slice(9, -3);
+           }
+           return "";
+        }).replace(/<!\[CDATA\[/g, "").replace(/\]\]>/g, "").replace(/<[^>]*>/g, "").trim();
 
         let rawDescription = "";
         if (contentMatch) rawDescription = contentMatch[1];
