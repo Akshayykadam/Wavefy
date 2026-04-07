@@ -11,28 +11,28 @@ import { useDownloads } from "@/contexts/DownloadContext";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { usePlaylist } from "@/contexts/PlaylistContext";
 import { useState, useRef, useCallback } from "react";
-import { Alert, TextInput } from "react-native";
+import { Alert, TextInput, ScrollView } from "react-native";
 
 const { width } = Dimensions.get("window");
-const TABS = ['Following', 'Liked', 'Downloads', 'Playlists'] as const;
-type TabKey = 'following' | 'liked' | 'downloads' | 'playlists';
+const TABS = ['Following', 'Liked', 'Downloads', 'Playlists', 'History'] as const;
+type TabKey = 'following' | 'liked' | 'downloads' | 'playlists' | 'history';
 
 export default function LibraryScreen() {
   const router = useRouter();
   const { followedPodcasts } = useFollowedPodcasts();
   const { likedEpisodes } = useLikedEpisodes();
   const { downloads, deleteDownload } = useDownloads();
-  const { playEpisode, setQueue } = usePlayer();
+  const { playEpisode, setQueue, resumeEpisode, getListeningHistory, removeHistoryItem, clearHistory } = usePlayer();
   const { playlists, createPlaylist, deletePlaylist } = usePlaylist();
   const [activeTab, setActiveTab] = useState<TabKey>('following');
 
   // Animated underline
-  const tabWidths = useRef<number[]>([0, 0, 0, 0]).current;
-  const tabPositions = useRef<number[]>([0, 0, 0, 0]).current;
+  const tabWidths = useRef<number[]>([0, 0, 0, 0, 0]).current;
+  const tabPositions = useRef<number[]>([0, 0, 0, 0, 0]).current;
   const indicatorLeft = useRef(new Animated.Value(0)).current;
   const indicatorWidth = useRef(new Animated.Value(0)).current;
 
-  const tabIndexMap: Record<TabKey, number> = { following: 0, liked: 1, downloads: 2, playlists: 3 };
+  const tabIndexMap: Record<TabKey, number> = { following: 0, liked: 1, downloads: 2, playlists: 3, history: 4 };
 
   const switchTab = useCallback((tab: TabKey) => {
     Haptics.selectionAsync();
@@ -148,6 +148,41 @@ export default function LibraryScreen() {
     </Pressable>
   );
 
+  const renderHistoryEpisode = ({ item }: { item: any }) => (
+    <Pressable
+      style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        if (resumeEpisode) resumeEpisode(item);
+      }}
+    >
+      <Image source={{ uri: item.episodeArtwork || item.podcastArtwork || item.artwork }} style={styles.episodeArtwork} contentFit="cover" />
+      <View style={styles.episodeInfo}>
+        <Text style={styles.episodeTitle} numberOfLines={2}>{item.episodeTitle || item.title || 'Untitled'}</Text>
+        <Text style={styles.episodeSubtitle}>{item.podcastTitle || 'Unknown Podcast'}</Text>
+      </View>
+      {item.completed ? (
+        <View style={styles.completedBadge}>
+          <Text style={styles.completedText}>Completed</Text>
+        </View>
+      ) : item.duration > 0 ? (
+        <View style={styles.progressContainerSmall}>
+          <View style={[styles.progressBarSmall, { width: `${(item.position / item.duration) * 100}%` }]} />
+        </View>
+      ) : null}
+      <Pressable
+        style={styles.deleteBtn}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          removeHistoryItem(item.episodeId);
+        }}
+        hitSlop={10}
+      >
+        <Trash2 size={16} color={Colors.secondaryText} />
+      </Pressable>
+    </Pressable>
+  );
+
   const renderEmptyState = (icon: React.ReactNode, text: string) => (
     <View style={styles.emptyState}>
       {icon}
@@ -162,7 +197,11 @@ export default function LibraryScreen() {
         <Text style={styles.headerTitle}>Library</Text>
 
         {/* Tab bar */}
-        <View style={styles.tabContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabContainer}
+        >
           {TABS.map((tab, index) => {
             const key = tab.toLowerCase() as TabKey;
             const isActive = activeTab === key;
@@ -186,7 +225,7 @@ export default function LibraryScreen() {
               { left: indicatorLeft, width: indicatorWidth },
             ]}
           />
-        </View>
+        </ScrollView>
 
         {activeTab === 'following' ? (
           <FlatList
@@ -226,6 +265,35 @@ export default function LibraryScreen() {
               "No downloaded episodes"
             )}
           />
+        ) : activeTab === 'history' ? (
+          <View style={{ flex: 1 }}>
+            {getListeningHistory && getListeningHistory().length > 0 && (
+              <Pressable 
+                style={styles.clearHistoryBtn}
+                onPress={() => {
+                  Alert.alert("Clear History", "Are you sure you want to clear your entire listening history?", [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Clear All", style: "destructive", onPress: () => {
+                      if (clearHistory) clearHistory();
+                    }}
+                  ]);
+                }}
+              >
+                <Text style={styles.clearHistoryText}>Clear All</Text>
+              </Pressable>
+            )}
+            <FlatList
+              key="!"
+              data={getListeningHistory ? getListeningHistory() : []}
+              renderItem={renderHistoryEpisode}
+              keyExtractor={(item) => item.episodeId}
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={renderEmptyState(
+                <Play size={48} color={Colors.secondaryText} />,
+                "No listening history"
+              )}
+            />
+          </View>
         ) : (
           <FlatList
             key="$"
@@ -423,6 +491,41 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: 8,
+  },
+  completedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: Colors.whiteAlpha10,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  completedText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+  },
+  progressContainerSmall: {
+    width: 60,
+    height: 4,
+    backgroundColor: Colors.whiteAlpha10,
+    borderRadius: 2,
+    marginLeft: 12,
+    overflow: 'hidden',
+  },
+  progressBarSmall: {
+    height: '100%',
+    backgroundColor: Colors.accent,
+    borderRadius: 2,
+  },
+  clearHistoryBtn: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  clearHistoryText: {
+    color: Colors.accent,
+    fontSize: 14,
+    fontWeight: '600',
   },
   emptyState: {
     flex: 1,
