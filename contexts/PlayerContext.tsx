@@ -397,10 +397,25 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       let finalEpisode: Episode | undefined;
       let finalPodcast: Podcast | undefined;
 
-      // Fast-hydrate if we have feedUrl
-      if (progressData.feedUrl) {
+      let finalFeedUrl = progressData.feedUrl;
+
+      // Legacy support: if history item lacks feedUrl, lookup from iTunes first
+      if (!finalFeedUrl && progressData.podcastId) {
         try {
-          const episodes = await parseRSS(progressData.feedUrl);
+          const response = await fetch(`https://itunes.apple.com/lookup?id=${progressData.podcastId}`);
+          const data = await response.json();
+          if (data.results && data.results.length > 0) {
+            finalFeedUrl = data.results[0].feedUrl;
+          }
+        } catch (e) {
+          console.warn('iTunes lookup failed during hydration', e);
+        }
+      }
+
+      // Fast-hydrate if we have feedUrl
+      if (finalFeedUrl) {
+        try {
+          const episodes = await parseRSS(finalFeedUrl);
           setPodcastEpisodes(episodes);
           finalEpisode = episodes.find(e => e.id === progressData.episodeId);
         } catch (e) {
@@ -427,7 +442,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         artistName: '',
         artworkUrl600: progressData.podcastArtwork || '',
         artworkUrl100: progressData.podcastArtwork || '',
-        feedUrl: progressData.feedUrl || '',
+        feedUrl: finalFeedUrl || '',
         trackCount: 0,
         releaseDate: '',
         primaryGenreName: '',

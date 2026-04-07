@@ -59,15 +59,6 @@ const fetchByCategory = async (genre: string): Promise<Podcast[]> => {
   return data.results || [];
 };
 
-const CATEGORIES = [
-  { name: 'Arts', colors: ['#EC4899', '#9d174d'] as const, icon: '🎨' },
-  { name: 'Education', colors: ['#8B5CF6', '#5721b5'] as const, icon: '📚' },
-  { name: 'History', colors: ['#F59E0B', '#b45309'] as const, icon: '🏛️' },
-  { name: 'Society', colors: ['#06B6D4', '#0e7490'] as const, icon: '🌍' },
-  { name: 'Music', colors: ['#1DB954', '#0d6b30'] as const, icon: '🎵' },
-  { name: 'Fiction', colors: ['#E13300', '#7a1c00'] as const, icon: '📖' },
-];
-
 export default function DiscoverScreen() {
   const router = useRouter();
 
@@ -168,6 +159,25 @@ export default function DiscoverScreen() {
             )}
           </View>
 
+          {/* Editor's Picks */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Star color={Colors.accent} size={18} fill={Colors.accent} />
+              <Text style={styles.sectionTitle}>Editor's Picks</Text>
+            </View>
+            {editorLoading ? renderSkeletonCards() : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+                snapToInterval={CARD_WIDTH + 12}
+                decelerationRate="fast"
+              >
+                {editorPicks.slice(0, 8).map(renderTrendingCard)}
+              </ScrollView>
+            )}
+          </View>
+
           {/* Top Charts */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -191,57 +201,7 @@ export default function DiscoverScreen() {
               <View style={styles.chartList}>
                 {topPodcasts.slice(0, 15).map((p, i) => renderChartItem(p, i))}
               </View>
-            )}
-          </View>
-
-          {/* Browse Categories */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Star color={Colors.accent} size={18} />
-              <Text style={styles.sectionTitle}>Browse Categories</Text>
-            </View>
-            <View style={styles.categoryGrid}>
-              {CATEGORIES.map((cat) => (
-                <Pressable
-                  key={cat.name}
-                  style={({ pressed }) => [styles.categoryTile, pressed && { opacity: 0.8, transform: [{ scale: 0.96 }] }]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    // Navigate to search with pre-filled query
-                    router.push(`/(tabs)/search?q=${cat.name}` as any);
-                  }}
-                >
-                  <LinearGradient
-                    colors={[...cat.colors]}
-                    style={styles.categoryGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                  >
-                    <Text style={styles.categoryIcon}>{cat.icon}</Text>
-                    <Text style={styles.categoryName}>{cat.name}</Text>
-                  </LinearGradient>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-
-          {/* Editor's Picks */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Star color={Colors.accent} size={18} fill={Colors.accent} />
-              <Text style={styles.sectionTitle}>Editor's Picks</Text>
-            </View>
-            {editorLoading ? renderSkeletonCards() : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-                snapToInterval={CARD_WIDTH + 12}
-                decelerationRate="fast"
-              >
-                {editorPicks.slice(0, 8).map(renderTrendingCard)}
-              </ScrollView>
-            )}
+          )}
           </View>
 
           <View style={{ height: 120 }} />
@@ -354,33 +314,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.accent,
     marginTop: 2,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  categoryTile: {
-    width: (width - 52) / 2,
-    height: 80,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  categoryGradient: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  categoryIcon: {
-    fontSize: 22,
-    marginBottom: 4,
-  },
-  categoryName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: -0.2,
   },
 });

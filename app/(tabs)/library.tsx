@@ -199,6 +199,7 @@ export default function LibraryScreen() {
         {/* Tab bar */}
         <ScrollView
           horizontal
+          style={{ flexGrow: 0 }}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabContainer}
         >

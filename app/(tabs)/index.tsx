@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
-import { Bell } from "lucide-react-native";
-import React from "react";
+import { Bell, Play, ChevronRight, ListMusic, Sun, Sunset, Moon } from "lucide-react-native";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,10 +8,13 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
+  RefreshControl,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
+import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { Podcast } from "@/types/podcast";
@@ -24,8 +27,18 @@ import { useNotifications } from "@/contexts/NotificationContext";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.42;
 
-const fetchFeaturedPodcasts = async (): Promise<Podcast[]> => {
-  const genres = ["Technology", "Comedy", "News", "True Crime", "Business"];
+const MOODS = ["Top Charts", "Focus", "Comedy", "Learn", "True Crime", "News"];
+const MOOD_CATEGORIES: Record<string, string[]> = {
+  "Top Charts": ["Trending", "Society", "Culture"],
+  "Focus": ["Technology", "Business", "Education"],
+  "Comedy": ["Comedy", "Improv", "Stand-up"],
+  "Learn": ["Science", "History", "Philosophy"],
+  "True Crime": ["True Crime", "Mystery", "Investigative"],
+  "News": ["Daily News", "Politics", "Tech News"]
+};
+
+const fetchFeaturedPodcasts = async (mood: string): Promise<Podcast[]> => {
+  const genres = MOOD_CATEGORIES[mood] || ["Technology", "Comedy", "News", "True Crime", "Business"];
   const randomGenre = genres[Math.floor(Math.random() * genres.length)];
   const response = await fetch(
     `https://itunes.apple.com/search?term=${randomGenre}&media=podcast&limit=10`
@@ -42,42 +55,56 @@ const fetchPodcastsByCategory = async (category: string): Promise<Podcast[]> => 
   return data.results;
 };
 
-const getGreeting = (): string => {
+const getGreeting = () => {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good Morning ☀️";
-  if (hour < 18) return "Good Afternoon";
-  return "Good Evening 🌙";
+  if (hour < 12) return { text: "Good Morning", icon: <Sun color={Colors.primaryText} size={28} /> };
+  if (hour < 18) return { text: "Good Afternoon", icon: <Sunset color={Colors.primaryText} size={28} /> };
+  return { text: "Good Evening", icon: <Moon color={Colors.primaryText} size={28} /> };
 };
 
 export default function HomeScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [activeMood, setActiveMood] = useState(MOODS[0]);
+  const [refreshing, setRefreshing] = useState(false);
+
   const {
     getHalfPlayedEpisodes,
     playEpisode,
     resumeEpisode,
+    queue,
   } = usePlayer();
 
   const halfPlayed = getHalfPlayedEpisodes();
   const { unreadCount } = useNotifications();
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await queryClient.invalidateQueries();
+    setRefreshing(false);
+  }, [queryClient]);
+
+  const activeCategories = MOOD_CATEGORIES[activeMood];
+
   const { data: featured = [], isLoading: featuredLoading } = useQuery({
-    queryKey: ["featured"],
-    queryFn: fetchFeaturedPodcasts,
+    queryKey: ["featured", activeMood],
+    queryFn: () => fetchFeaturedPodcasts(activeMood),
   });
 
-  const { data: technology = [], isLoading: techLoading } = useQuery({
-    queryKey: ["technology"],
-    queryFn: () => fetchPodcastsByCategory("Technology"),
+  const { data: cat1 = [], isLoading: cat1Loading } = useQuery({
+    queryKey: ["category", activeCategories[0]],
+    queryFn: () => fetchPodcastsByCategory(activeCategories[0]),
   });
 
-  const { data: comedy = [], isLoading: comedyLoading } = useQuery({
-    queryKey: ["comedy"],
-    queryFn: () => fetchPodcastsByCategory("Comedy"),
+  const { data: cat2 = [], isLoading: cat2Loading } = useQuery({
+    queryKey: ["category", activeCategories[1]],
+    queryFn: () => fetchPodcastsByCategory(activeCategories[1]),
   });
 
-  const { data: trueCrime = [], isLoading: trueCrimeLoading } = useQuery({
-    queryKey: ["true-crime"],
-    queryFn: () => fetchPodcastsByCategory("True Crime"),
+  const { data: cat3 = [], isLoading: cat3Loading } = useQuery({
+    queryKey: ["category", activeCategories[2]],
+    queryFn: () => fetchPodcastsByCategory(activeCategories[2]),
   });
 
   const renderPodcastCard = (podcast: Podcast) => (
@@ -141,11 +168,87 @@ export default function HomeScreen() {
     </View>
   );
 
+  const heroEpisode = halfPlayed.length > 0 ? halfPlayed[0] : null;
+  const remainingHalfPlayed = halfPlayed.length > 1 ? halfPlayed.slice(1) : [];
+
+  const renderMoodChips = () => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.moodScroll} style={styles.moodScrollContainer}>
+      {MOODS.map(mood => (
+        <Pressable 
+          key={mood}
+          style={[styles.moodChip, activeMood === mood && styles.moodChipActive]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setActiveMood(mood);
+          }}
+        >
+          <Text style={[styles.moodChipText, activeMood === mood && styles.moodChipTextActive]}>{mood}</Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+
+  const renderUpNextBanner = () => {
+    if (!queue || queue.length === 0) return null;
+    const nextEp = queue[0];
+    return (
+      <Pressable 
+        style={styles.upNextBanner} 
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push('/queue');
+        }}
+      >
+        <ListMusic color={Colors.accent} size={18} />
+        <View style={styles.upNextContent}>
+          <Text style={styles.upNextLabel}>Up Next</Text>
+          <Text style={styles.upNextTitle} numberOfLines={1}>{nextEp.title}</Text>
+        </View>
+        <ChevronRight color={Colors.secondaryText} size={20} />
+      </Pressable>
+    )
+  };
+
+  const renderHeroCard = () => {
+    if (!heroEpisode) return null;
+    return (
+      <View style={styles.heroWrapper}>
+        <Text style={styles.sectionTitle}>Jump Back In</Text>
+        <Pressable 
+          style={styles.heroContainer} 
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (resumeEpisode) resumeEpisode(heroEpisode);
+          }}
+        >
+            <Image source={{ uri: heroEpisode.episodeArtwork || heroEpisode.podcastArtwork || '' }} style={[StyleSheet.absoluteFill, { borderRadius: 20 }]} contentFit="cover" />
+            <BlurView intensity={Platform.OS === 'ios' ? 70 : 100} tint="dark" style={styles.heroOverlay}>
+              <View style={styles.heroContentInner}>
+                <View style={{ flex: 1, marginRight: 16 }}>
+                  <Text style={styles.heroTitle} numberOfLines={2}>{heroEpisode.episodeTitle || 'Untitled'}</Text>
+                  <Text style={styles.heroSubtitle} numberOfLines={1}>{heroEpisode.podcastTitle}</Text>
+                </View>
+                <View style={styles.heroPlayBtn}>
+                  <Play size={22} color={Colors.black} fill={Colors.black} style={{ marginLeft: 3 }}/>
+                </View>
+              </View>
+              <View style={styles.heroProgress}>
+                  <View style={[styles.heroProgressBar, { width: `${(heroEpisode.position / Math.max(heroEpisode.duration, 1)) * 100}%` }]} />
+              </View>
+            </BlurView>
+        </Pressable>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <View style={styles.header}>
-          <Text style={styles.title}>{getGreeting()}</Text>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>{getGreeting().text}</Text>
+            {getGreeting().icon}
+          </View>
           <Pressable
             onPress={() => {
               router.push('/notifications' as any);
@@ -165,9 +268,19 @@ export default function HomeScreen() {
           style={styles.content}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
         >
+          {/* Mood Chips */}
+          {renderMoodChips()}
+          
+          {/* Hero Row */}
+          {renderHeroCard()}
+
+          {/* Up Next Preview */}
+          {renderUpNextBanner()}
+
           {/* Continue Listening */}
-          {halfPlayed.length > 0 && (
+          {remainingHalfPlayed.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Continue Listening</Text>
               <ScrollView
@@ -175,7 +288,7 @@ export default function HomeScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalScroll}
               >
-                {halfPlayed.slice(0, 8).map((ep, index) => (
+                {remainingHalfPlayed.slice(0, 8).map((ep, index) => (
                   <ContinueListeningCard
                     key={`continue-${ep.episodeId}-${index}`}
                     episodeTitle={ep.episodeTitle || 'Untitled'}
@@ -208,9 +321,9 @@ export default function HomeScreen() {
           ) : null}
 
           {/* Category sections */}
-          {renderCategorySection("Technology", technology, techLoading)}
-          {renderCategorySection("Comedy", comedy, comedyLoading)}
-          {renderCategorySection("True Crime", trueCrime, trueCrimeLoading)}
+          {renderCategorySection(activeCategories[0], cat1, cat1Loading)}
+          {renderCategorySection(activeCategories[1], cat2, cat2Loading)}
+          {renderCategorySection(activeCategories[2], cat3, cat3Loading)}
 
           <View style={styles.bottomPadding} />
         </ScrollView>
@@ -235,12 +348,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  titleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   title: {
     fontSize: 30,
     fontWeight: "800" as const,
     color: Colors.primaryText,
     letterSpacing: -0.5,
-    flex: 1,
   },
   bellButton: {
     width: 38,
@@ -272,6 +390,110 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 150,
+  },
+  moodScrollContainer: {
+    marginBottom: 8,
+  },
+  moodScroll: {
+    paddingHorizontal: 20,
+    gap: 12,
+    paddingVertical: 10,
+  },
+  moodChip: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    backgroundColor: Colors.whiteAlpha10,
+    borderRadius: 20,
+  },
+  moodChipActive: {
+    backgroundColor: Colors.accent,
+  },
+  moodChipText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.secondaryText,
+  },
+  moodChipTextActive: {
+    color: Colors.black,
+  },
+  heroWrapper: {
+    marginVertical: 12,
+  },
+  heroContainer: {
+    marginHorizontal: 20,
+    height: 180,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    overflow: 'hidden',
+  },
+  heroOverlay: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  heroContentInner: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  heroTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '500',
+  },
+  heroPlayBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroProgress: {
+    height: 4,
+    backgroundColor: Colors.whiteAlpha20,
+    width: '100%',
+  },
+  heroProgressBar: {
+    height: '100%',
+    backgroundColor: Colors.accent,
+  },
+  upNextBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    marginHorizontal: 20,
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  upNextContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  upNextLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  upNextTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.primaryText,
   },
   section: {
     marginTop: 28,
