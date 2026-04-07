@@ -38,6 +38,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { followedPodcasts } = useFollowedPodcasts();
   const hasInitialized = useRef(false);
+  const isRefreshingRef = useRef(false);
 
   // Load stored notifications on mount
   useEffect(() => {
@@ -100,7 +101,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   };
 
   const refreshNotifications = useCallback(async () => {
-    if (followedPodcasts.length === 0 || isRefreshing) return;
+    if (followedPodcasts.length === 0 || isRefreshingRef.current) return;
+    isRefreshingRef.current = true;
     setIsRefreshing(true);
 
     try {
@@ -114,8 +116,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       console.error('Failed to refresh notifications:', e);
     } finally {
       setIsRefreshing(false);
+      isRefreshingRef.current = false;
     }
-  }, [followedPodcasts, isRefreshing]);
+  }, [followedPodcasts]);
 
   const markRead = useCallback((id: string) => {
     setNotifications(prev => {
@@ -133,7 +136,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
   }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = React.useMemo(
+    () => notifications.filter(n => !n.read).length,
+    [notifications]
+  );
 
   return (
     <NotificationContext.Provider value={{

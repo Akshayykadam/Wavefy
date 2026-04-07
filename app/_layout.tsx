@@ -20,11 +20,22 @@ import '@/utils/backgroundNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,   // 5 minutes — prevents refetch on every tab switch / mount
+      gcTime: 1000 * 60 * 10,     // 10 minutes in cache
+      retry: 1,
+    },
+  },
+});
 
 function RootLayoutNav() {
   const router = useRouter();
   const notificationResponseListener = useRef<{ remove(): void } | null>(null);
+
+  const routerRef = React.useRef(router);
+  React.useEffect(() => { routerRef.current = router; });
 
   useEffect(() => {
     // Handle notification taps to navigate to the podcast
@@ -32,7 +43,7 @@ function RootLayoutNav() {
       (response) => {
         const data = response.notification.request.content.data;
         if (data?.podcastId) {
-          router.push(`/podcast/${data.podcastId}` as any);
+          routerRef.current.push(`/podcast/${data.podcastId}` as any);
         }
       }
     );
@@ -40,7 +51,7 @@ function RootLayoutNav() {
     return () => {
       notificationResponseListener.current?.remove();
     };
-  }, [router]);
+  }, []); // Empty deps — listener registered once, router accessed via ref
 
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>

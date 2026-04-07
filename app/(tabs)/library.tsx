@@ -1,3 +1,4 @@
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { View, Text, StyleSheet, FlatList, Pressable, Animated, Dimensions } from "react-native";
 import { Image } from "expo-image";
@@ -10,7 +11,6 @@ import { useLikedEpisodes } from "@/contexts/LikedEpisodesContext";
 import { useDownloads } from "@/contexts/DownloadContext";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { usePlaylist } from "@/contexts/PlaylistContext";
-import { useState, useRef, useCallback } from "react";
 import { Alert, TextInput, ScrollView } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -25,6 +25,17 @@ export default function LibraryScreen() {
   const { playEpisode, setQueue, resumeEpisode, getListeningHistory, removeHistoryItem, clearHistory } = usePlayer();
   const { playlists, createPlaylist, deletePlaylist } = usePlaylist();
   const [activeTab, setActiveTab] = useState<TabKey>('following');
+
+  // Memoize expensive derived data to avoid recomputing on every render
+  const listeningHistory = React.useMemo(
+    () => getListeningHistory ? getListeningHistory() : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [getListeningHistory]
+  );
+  const downloadsArray = React.useMemo(
+    () => Object.values(downloads) as any[],
+    [downloads]
+  );
 
   // Animated underline
   const tabWidths = useRef<number[]>([0, 0, 0, 0, 0]).current;
@@ -63,7 +74,7 @@ export default function LibraryScreen() {
     }
   }, [activeTab, indicatorLeft, indicatorWidth, tabPositions, tabWidths]);
 
-  const renderPodcastItem = ({ item }: { item: any }) => (
+  const renderPodcastItem = useCallback(({ item }: { item: any }) => (
     <Pressable
       style={({ pressed }) => [styles.podcastItem, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}
       onPress={() => {
@@ -79,7 +90,7 @@ export default function LibraryScreen() {
         {item.artistName}
       </Text>
     </Pressable>
-  );
+  ), [router]);
 
   const startLikedPlayback = (episode: any, index: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -107,7 +118,7 @@ export default function LibraryScreen() {
     });
   };
 
-  const renderLikedEpisode = ({ item, index }: { item: any, index: number }) => (
+  const renderLikedEpisode = useCallback(({ item, index }: { item: any, index: number }) => (
     <Pressable
       style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
       onPress={() => startLikedPlayback(item, index)}
@@ -121,9 +132,9 @@ export default function LibraryScreen() {
         <Play size={18} color={Colors.accent} fill={Colors.accent} />
       </View>
     </Pressable>
-  );
+  ), [startLikedPlayback]);
 
-  const renderDownloadedEpisode = ({ item }: { item: any }) => (
+  const renderDownloadedEpisode = useCallback(({ item }: { item: any }) => (
     <Pressable
       style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
       onPress={() => startDownloadPlayback(item)}
@@ -146,9 +157,9 @@ export default function LibraryScreen() {
         <Trash2 size={18} color={Colors.secondaryText} />
       </Pressable>
     </Pressable>
-  );
+  ), [startDownloadPlayback, deleteDownload]);
 
-  const renderHistoryEpisode = ({ item }: { item: any }) => (
+  const renderHistoryEpisode = useCallback(({ item }: { item: any }) => (
     <Pressable
       style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
       onPress={() => {
@@ -181,7 +192,7 @@ export default function LibraryScreen() {
         <Trash2 size={16} color={Colors.secondaryText} />
       </Pressable>
     </Pressable>
-  );
+  ), [resumeEpisode, removeHistoryItem]);
 
   const renderEmptyState = (icon: React.ReactNode, text: string) => (
     <View style={styles.emptyState}>
@@ -249,6 +260,7 @@ export default function LibraryScreen() {
             renderItem={renderLikedEpisode}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
+            removeClippedSubviews
             ListEmptyComponent={renderEmptyState(
               <Headphones size={48} color={Colors.secondaryText} />,
               "No liked episodes yet"
@@ -257,10 +269,11 @@ export default function LibraryScreen() {
         ) : activeTab === 'downloads' ? (
           <FlatList
             key="@"
-            data={Object.values(downloads) as any[]}
+            data={downloadsArray}
             renderItem={renderDownloadedEpisode}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
+            removeClippedSubviews
             ListEmptyComponent={renderEmptyState(
               <Download size={48} color={Colors.secondaryText} />,
               "No downloaded episodes"
@@ -283,12 +296,13 @@ export default function LibraryScreen() {
                 <Text style={styles.clearHistoryText}>Clear All</Text>
               </Pressable>
             )}
-            <FlatList
+          <FlatList
               key="!"
-              data={getListeningHistory ? getListeningHistory() : []}
+              data={listeningHistory}
               renderItem={renderHistoryEpisode}
               keyExtractor={(item) => item.episodeId}
               contentContainerStyle={styles.listContent}
+              removeClippedSubviews
               ListEmptyComponent={renderEmptyState(
                 <Play size={48} color={Colors.secondaryText} />,
                 "No listening history"

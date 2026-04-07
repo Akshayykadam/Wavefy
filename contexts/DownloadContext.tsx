@@ -21,6 +21,7 @@ export interface DownloadedEpisode extends Episode {
 export const [DownloadProvider, useDownloads] = createContextHook(() => {
     const [downloads, setDownloads] = useState<{ [id: string]: DownloadedEpisode }>({});
     const downloadResumables = useRef<{ [id: string]: any }>({}); // Use any for simpler TS handling with Expo
+    const downloadProgressThrottle = useRef<{ [id: string]: number }>({});
 
     // Ensure download directory exists
     useEffect(() => {
@@ -84,10 +85,15 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
         setDownloads(prev => ({ ...prev, [episode.id]: newEntry }));
 
         const callback = (downloadProgress: any) => {
+            const now = Date.now();
+            // Throttle re-renders to at most once per second per episode
+            if (now - (downloadProgressThrottle.current[episode.id] || 0) < 1000) return;
+            downloadProgressThrottle.current[episode.id] = now;
+
             const calculatedProgress = downloadProgress.totalBytesExpectedToWrite > 0
                 ? (downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite) * 100
                 : 0;
-            const progress = Math.max(1, calculatedProgress); // Ensure it doesn't drop to 0 and hide spinner
+            const progress = Math.max(1, calculatedProgress);
 
             setDownloads(prev => {
                 const current = prev[episode.id];
@@ -133,7 +139,7 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
         } finally {
             delete downloadResumables.current[episode.id];
         }
-    }, [downloads]);
+    }, []);
 
     const deleteDownload = useCallback(async (episodeId: string) => {
         if (downloadResumables.current[episodeId]) {

@@ -33,9 +33,13 @@ export default function MiniPlayer() {
   } = usePlayer();
 
   const animatedWidth = React.useRef(new Animated.Value(0)).current;
+  const lastAnimatedPerc = React.useRef(-1);
 
   React.useEffect(() => {
     const progressPerc = duration > 0 ? (position / duration) * 100 : 0;
+    // Only animate when progress changes by at least 0.5% — avoids animation on every tick
+    if (Math.abs(progressPerc - lastAnimatedPerc.current) < 0.5) return;
+    lastAnimatedPerc.current = progressPerc;
     Animated.timing(animatedWidth, {
       toValue: progressPerc,
       duration: 1000,

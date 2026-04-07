@@ -101,7 +101,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
   const updateState = useCallback(async () => {
     const state = await TrackPlayer.getPlaybackState();
-    console.log('PlayerContext - Manual State Check:', state);
     // Handle both object return (v4) and direct state
     const actualState = (state as any).state || state;
     setIsPlaying(actualState === State.Playing);
@@ -110,16 +109,16 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
   useTrackPlayerEvents([TrackPlayerEvent.PlaybackState], (event) => {
     if (event.type === TrackPlayerEvent.PlaybackState) {
-      console.log('PlayerContext - State Change Event:', event.state);
       setIsPlaying(event.state === State.Playing);
       setIsLoading(event.state === State.Buffering || event.state === State.Loading);
     }
   });
 
-  // Check state on mount and periodically
+  // Sync state once on mount + low-frequency fallback (5s) for edge cases only.
+  // The TrackPlayerEvent.PlaybackState listener above handles real-time updates.
   useEffect(() => {
     updateState();
-    const interval = setInterval(updateState, 1000); // Poll every second as backup
+    const interval = setInterval(updateState, 5000);
     return () => clearInterval(interval);
   }, [updateState]);
 
@@ -359,13 +358,24 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     if (isPlayerReady) TrackPlayer.setRate(playbackRate);
   }, [playbackRate, isPlayerReady]);
 
-  // Track progress and update episode progress data
+  // Debounce refs for position saves — avoid hammering AsyncStorage on every tick
+  const lastPositionSaveRef = useRef(0);
+  const lastProgressUpdateRef = useRef(0);
+
+  // Track progress and update episode progress data (throttled)
   useEffect(() => {
     if (progress.position > 0 && isPlaying && currentEpisode && currentPodcast) {
-      AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(progress.position)).catch(() => { });
+      const now = Date.now();
 
-      // Update episode progress every 10 seconds
-      if (Math.floor(progress.position) % 10 === 0) {
+      // Save position to AsyncStorage at most once every 3 seconds
+      if (now - lastPositionSaveRef.current > 3000) {
+        lastPositionSaveRef.current = now;
+        AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(progress.position)).catch(() => {});
+      }
+
+      // Update episode progress map at most once every 10 seconds
+      if (now - lastProgressUpdateRef.current > 10000) {
+        lastProgressUpdateRef.current = now;
         updateEpisodeProgress(currentEpisode, currentPodcast, progress.position, progress.duration);
       }
     }

@@ -61,10 +61,12 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
     loadCache();
   }, []);
 
+  const progressCount = Object.keys(episodeProgressMap).length;
+
   // Auto-refresh when key signals change (debounced)
   useEffect(() => {
     // Don't refresh on initial empty state
-    if (followedPodcasts.length === 0 && Object.keys(episodeProgressMap).length === 0) {
+    if (followedPodcasts.length === 0 && progressCount === 0) {
       return;
     }
 
@@ -86,7 +88,7 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
     // Instantly update lastRefresh so concurrent context-load triggers are debounced
     lastRefresh.current = Date.now();
     refreshRecommendations();
-  }, [followedPodcasts.length, likedEpisodes.length, Object.keys(episodeProgressMap).length]);
+  }, [followedPodcasts.length, likedEpisodes.length, progressCount]);
 
   const loadCache = async () => {
     try {
