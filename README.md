@@ -2,6 +2,18 @@
 
 Wavefy is a modern, open-source podcast player built with **React Native** and **Expo**. It offers a premium listening experience with offline support, sleek UI, and robust state management.
 
+## ✨ UI
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/8ed895f4-528a-4e1b-945f-b02e70eef17f" width="110"/>  
+  <img src="https://github.com/user-attachments/assets/4e82bdee-591e-484f-add5-2655e8142465" width="110"/>
+  <img src="https://github.com/user-attachments/assets/15978848-216a-466a-ab1c-d4ed8f4628af" width="110"/>
+  <img src="https://github.com/user-attachments/assets/687e81f5-d854-4c89-8347-813a1590fd2e" width="110"/>
+  <img src="https://github.com/user-attachments/assets/32f57331-12b2-4361-8cc8-6131e4c8202e" width="110"/>
+  <img src="https://github.com/user-attachments/assets/3ba584d7-0a37-4e8f-a926-4164e13a085d" width="110"/>
+  <img src="https://github.com/user-attachments/assets/1b7c5f8f-f5fb-47f6-a067-5269234320d0" width="110"/>
+</p>
+
+
 ## 🚀 Features
 
 *   **🎧 Full Featured Player**: Play, pause, seek, background audio support, and solid controls.
