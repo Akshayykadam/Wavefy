@@ -169,7 +169,7 @@ export async function setupNotifications(): Promise<boolean> {
       name: 'New Episodes',
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF2D55',
+      lightColor: '#FF3B30',
       sound: 'default',
     });
   }
