@@ -6,11 +6,15 @@ Wavefy is a modern, open-source podcast player built with **React Native** and *
 
 *   **🎧 Full Featured Player**: Play, pause, seek, background audio support, and solid controls.
 *   **⏱️ Sleep Timer**: Fall asleep to your favorite stories with a built-in timer (15m, 30m, 45m, 60m).
-*   **⏩ Smart Playback**: Granular speed control (0.5x - 2.0x) with high-quality pitch correction (no chipmunk voices!).
+*   **⏩ Smart Playback**: Granular speed control (0.5x - 2.0x) with high-quality pitch correction.
 *   **⬇️ Offline Mode**: Download episodes to your device and listen without an internet connection. The app automatically prioritizes local files.
 *   **❤️ Favorites & Queue**: Like episodes to save them for later or build a custom playback queue.
 *   **🔔 Follow Podcasts**: Subscribe to your favorite shows and stay updated.
-*   **🎨 Premium UI**: Dark-mode first design with fluid animations, intuitive gestures, and a slick player interface.
+*   **✨ Personalized Recommendations**: Enjoy a daily mix and curated podcast suggestions on the home screen based on your listening habits.
+*   **🕰️ Listening History**: Keep track of what you've listened to via the dedicated History tab. Play, remove, or clear history effortlessly.
+*   **📂 Advanced Playlists**: Create, manage, and customize your own playlists for all your favorite moments and episodes.
+*   **📲 Background Notifications**: Fluid deep-linking and in-app navigation right from your notification drawer.
+*   **🎨 Premium UI**: Dark-mode first design with fluid animations, intuitive gestures, and a sleek layout.
 
 ## 🛠 Tech Stack
 
@@ -80,9 +84,7 @@ This project is open source and free to use! Contributions are welcome.
 4.  Push to the Branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
 
-## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
 
 ---
 
