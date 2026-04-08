@@ -92,11 +92,12 @@ export default function ShowNotesSheet({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-        <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={styles.overlay} />
-      </Pressable>
-      <View style={styles.sheet}>
+      <View style={styles.modalContainer}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+          <View style={styles.overlay} />
+        </Pressable>
+        <View style={styles.sheet}>
         <View style={styles.dragHandle} />
 
         {/* Header */}
@@ -166,11 +167,16 @@ export default function ShowNotesSheet({
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -251,6 +257,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: 'rgba(255, 255, 255, 0.85)',
+    marginBottom: 12,
   },
   emptyText: {
     fontSize: 14,
