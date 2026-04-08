@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Podcast, Episode } from '@/types/podcast';
 import { usePlayer } from '@/contexts/PlayerContext';
@@ -50,6 +51,8 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const lastRefresh = useRef<number>(0);
   const isFetchingRef = useRef(false);
+  const initialLoadDone = useRef(false);
+  const interactionHandle = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
 
   const { episodeProgressMap } = usePlayer();
   const { followedPodcasts } = useFollowedPodcasts();
@@ -59,6 +62,10 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
   // Load cached recommendations on mount
   useEffect(() => {
     loadCache();
+    return () => {
+      // Clean up any pending interaction handles
+      interactionHandle.current?.cancel();
+    };
   }, []);
 
   const progressCount = Object.keys(episodeProgressMap).length;
@@ -84,10 +91,14 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
       return;
     }
 
-    // Full refresh needed
-    // Instantly update lastRefresh so concurrent context-load triggers are debounced
+    // Full refresh needed — but defer until after animations/interactions complete
+    // so tab navigation stays responsive
     lastRefresh.current = Date.now();
-    refreshRecommendations();
+
+    interactionHandle.current?.cancel();
+    interactionHandle.current = InteractionManager.runAfterInteractions(() => {
+      refreshRecommendations();
+    });
   }, [followedPodcasts.length, likedEpisodes.length, progressCount]);
 
   const loadCache = async () => {
@@ -101,6 +112,7 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
           setRecommendations(cached.recommendations);
           setForYouQueue(cached.forYouQueue);
           lastRefresh.current = cached.timestamp;
+          initialLoadDone.current = true;
         }
       }
     } catch (e) {
@@ -124,7 +136,14 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
   const refreshRecommendations = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    setIsLoading(true);
+
+    // Only show loading skeletons if we have NO cached data to display.
+    // If we already have recommendations, refresh silently in the background
+    // so the user can still navigate tabs freely.
+    const hasCachedData = recommendations.length > 0 || forYouQueue.length > 0 || initialLoadDone.current;
+    if (!hasCachedData) {
+      setIsLoading(true);
+    }
 
     try {
       // Step 1: Build user profile
@@ -145,6 +164,7 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
       setRecommendations(recs);
       setForYouQueue(queue);
       lastRefresh.current = Date.now();
+      initialLoadDone.current = true;
 
       // Cache results
       await saveCache(recs, queue);
@@ -162,7 +182,7 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [followedPodcasts, likedEpisodes, episodeProgressMap, playlists]);
+  }, [followedPodcasts, likedEpisodes, episodeProgressMap, playlists, recommendations.length, forYouQueue.length]);
 
   return (
     <RecommendationContext.Provider value={{
@@ -176,3 +196,4 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
     </RecommendationContext.Provider>
   );
 }
+
