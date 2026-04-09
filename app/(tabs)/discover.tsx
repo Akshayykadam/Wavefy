@@ -286,13 +286,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: Colors.primaryText,
-    marginTop: 10,
+    marginTop: 8,
     letterSpacing: -0.2,
   },
   trendArtist: {
     fontSize: 12,
     color: Colors.secondaryText,
-    marginTop: 3,
+    marginTop: 2,
   },
   chartList: {
     paddingHorizontal: 20,
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 4,
     gap: 12,
-    borderRadius: 12,
+    borderRadius: 14,
   },
   chartItemTop3: {
     backgroundColor: Colors.whiteAlpha05,
@@ -341,13 +341,14 @@ const styles = StyleSheet.create({
   chartArtist: {
     fontSize: 13,
     color: Colors.secondaryText,
+    letterSpacing: -0.1,
   },
   genreTag: {
     backgroundColor: Colors.whiteAlpha05,
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 6,
     marginTop: 2,
   },
   chartGenre: {

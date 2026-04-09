@@ -506,8 +506,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.surface,
     marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 16,
+    padding: 14,
+    borderRadius: 14,
     marginTop: 12,
     marginBottom: 8,
   },
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     marginHorizontal: 20,
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 14,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
   mixArtwork: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: Colors.surfaceLight,
   },
   mixInfo: {

@@ -119,14 +119,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 12,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.whiteAlpha10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -139,21 +139,21 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   markAllButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.whiteAlpha10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingBottom: 120,
   },
   notifItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
+    padding: 12,
     borderRadius: 14,
     marginBottom: 8,
     gap: 12,
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
   notifArtwork: {
     width: 52,
     height: 52,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: Colors.surfaceLight,
   },
   notifContent: {
@@ -178,6 +178,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.primaryText,
     marginBottom: 2,
+    letterSpacing: -0.2,
   },
   notifEpisode: {
     fontSize: 13,

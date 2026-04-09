@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { InteractionManager } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { useFollowedPodcasts } from './FollowedPodcastsContext';
@@ -71,12 +72,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   // Check for new episodes when followed podcasts change
+  // Defer to after interactions so tab switches & animations aren't blocked
   useEffect(() => {
     if (followedPodcasts.length > 0) {
-      // Small delay to avoid blocking startup
       const timer = setTimeout(() => {
-        refreshNotifications();
-      }, 3000);
+        const task = InteractionManager.runAfterInteractions(() => {
+          refreshNotifications();
+        });
+        return () => task.cancel();
+      }, 5000); // 5-second delay to avoid competing with startup
       return () => clearTimeout(timer);
     }
   }, [followedPodcasts.length]);

@@ -244,14 +244,14 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 12,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.whiteAlpha10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -281,11 +281,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingBottom: 120,
   },
   section: {
-    marginTop: 20,
+    marginTop: 24,
   },
   sectionTitle: {
     fontSize: 14,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
   nowPlayingArt: {
     width: 56,
     height: 56,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: Colors.surfaceLight,
   },
   nowPlayingInfo: {
@@ -337,13 +337,13 @@ const styles = StyleSheet.create({
   queueItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 12,
   },
   queueArtwork: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: Colors.surface,
   },
   queueInfo: {
@@ -354,10 +354,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primaryText,
     marginBottom: 2,
+    letterSpacing: -0.2,
   },
   queueSubtitle: {
     fontSize: 12,
     color: Colors.secondaryText,
+    letterSpacing: -0.1,
   },
   removeBtn: {
     width: 32,

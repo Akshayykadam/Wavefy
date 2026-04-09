@@ -281,7 +281,7 @@ export default function LibraryScreen() {
           />
         ) : activeTab === 'history' ? (
           <View style={{ flex: 1 }}>
-            {getListeningHistory && getListeningHistory().length > 0 && (
+            {listeningHistory.length > 0 && (
               <Pressable 
                 style={styles.clearHistoryBtn}
                 onPress={() => {
@@ -404,13 +404,13 @@ const styles = StyleSheet.create({
     color: Colors.primaryText,
     paddingHorizontal: 20,
     paddingTop: 8,
-    marginBottom: 4,
+    marginBottom: 8,
     letterSpacing: -0.5,
   },
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginTop: 8,
+    marginTop: 4,
     marginBottom: 8,
     position: 'relative',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: 14,
     marginBottom: 10,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.whiteAlpha05,
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
   episodeArtwork: {
     width: 52,
     height: 52,
-    borderRadius: 8,
+    borderRadius: 10,
     marginRight: 12,
     backgroundColor: Colors.surfaceLight,
   },
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
   clearHistoryBtn: {
     alignSelf: 'flex-end',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   clearHistoryText: {
     color: Colors.accent,
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 80,
+    marginTop: 60,
     gap: 10,
   },
   emptyTitle: {
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
     gap: 2,
     marginBottom: 8,
@@ -587,14 +587,14 @@ const styles = StyleSheet.create({
   playlistSingleArt: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     marginBottom: 8,
     backgroundColor: Colors.surface,
   },
   createPlaylistArt: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',

@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { Search as SearchIcon, X, Cpu, Crosshair, Laugh, Newspaper, Briefcase, Trophy, HeartPulse, FlaskConical } from "lucide-react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   FlatList,
   Dimensions,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
@@ -42,6 +43,27 @@ export default function SearchScreen() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
+  const SEARCH_HISTORY_KEY = 'wavefy_search_history';
+  const MAX_HISTORY = 10;
+
+  // Load persisted search history on mount
+  useEffect(() => {
+    AsyncStorage.getItem(SEARCH_HISTORY_KEY).then(stored => {
+      if (stored) {
+        try { setRecentSearches(JSON.parse(stored)); } catch {}
+      }
+    });
+  }, []);
+
+  // Persist whenever history changes
+  const updateHistory = useCallback((updater: (prev: string[]) => string[]) => {
+    setRecentSearches(prev => {
+      const next = updater(prev);
+      AsyncStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -65,15 +87,26 @@ export default function SearchScreen() {
     enabled: debouncedQuery.length > 0,
   });
 
+  const addToHistory = useCallback((term: string) => {
+    const trimmed = term.trim();
+    if (!trimmed) return;
+    updateHistory(prev => {
+      const filtered = prev.filter(s => s.toLowerCase() !== trimmed.toLowerCase());
+      return [trimmed, ...filtered].slice(0, MAX_HISTORY);
+    });
+  }, [updateHistory]);
+
   const handleSearch = (searchQuery: string) => {
     setQuery(searchQuery);
-    if (searchQuery.trim() && !recentSearches.includes(searchQuery)) {
-      setRecentSearches([searchQuery, ...recentSearches.slice(0, 4)]);
-    }
+    addToHistory(searchQuery);
   };
 
   const removeRecent = (index: number) => {
-    setRecentSearches(prev => prev.filter((_, i) => i !== index));
+    updateHistory(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const clearAllHistory = () => {
+    updateHistory(() => []);
   };
 
   const renderPodcastItem = ({ item }: { item: Podcast }) => (
@@ -81,6 +114,7 @@ export default function SearchScreen() {
       style={({ pressed }) => [styles.resultItem, pressed && { opacity: 0.7 }]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        addToHistory(query);
         router.push(`/podcast/${item.collectionId}` as any);
       }}
     >
@@ -162,7 +196,12 @@ export default function SearchScreen() {
             {/* Recent Searches */}
             {recentSearches.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Recent</Text>
+                <View style={styles.recentHeader}>
+                  <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Recent</Text>
+                  <Pressable onPress={clearAllHistory} hitSlop={8}>
+                    <Text style={styles.clearAllText}>Clear All</Text>
+                  </Pressable>
+                </View>
                 {recentSearches.map((search, index) => (
                   <View key={index} style={styles.recentRow}>
                     <Pressable
@@ -266,8 +305,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 14,
     marginHorizontal: 20,
-    marginTop: 14,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 10,
     paddingHorizontal: 14,
     height: 48,
     borderWidth: 1,
@@ -297,7 +336,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    marginTop: 24,
+    marginTop: 28,
     paddingHorizontal: 20,
   },
   sectionTitle: {
@@ -323,9 +362,21 @@ const styles = StyleSheet.create({
   recentText: {
     fontSize: 16,
     color: Colors.primaryText,
+    letterSpacing: -0.2,
   },
   recentClose: {
     padding: 4,
+  },
+  recentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  clearAllText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.accent,
   },
   genreGrid: {
     flexDirection: 'row',
@@ -335,7 +386,7 @@ const styles = StyleSheet.create({
   genreTile: {
     width: TILE_WIDTH,
     height: 88,
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   genreGradient: {
@@ -357,7 +408,7 @@ const styles = StyleSheet.create({
   resultsContainer: {
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 150,
+    paddingBottom: 120,
   },
   resultItem: {
     flexDirection: "row",
@@ -395,7 +446,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 4,
+    borderRadius: 6,
     marginTop: 2,
   },
   resultGenre: {

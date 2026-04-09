@@ -150,9 +150,9 @@ export default function MiniPlayer() {
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    left: 10,
-    right: 10,
-    borderRadius: 18,
+    left: 12,
+    right: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
@@ -170,8 +170,8 @@ const styles = StyleSheet.create({
     height: 2.5,
     backgroundColor: Colors.progressBg,
     zIndex: 10,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
     overflow: 'hidden',
   },
   progressBar: {
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
   artwork: {
     width: 46,
     height: 46,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: Colors.surface,
   },
   info: {

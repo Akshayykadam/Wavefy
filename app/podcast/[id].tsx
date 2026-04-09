@@ -126,15 +126,34 @@ export default function PodcastDetailScreen() {
     },
   });
 
-  const { data: episodes = [], isLoading: isEpisodesLoading } = useQuery({
+  const { data: episodes = [], isLoading: isEpisodesLoading, isError: isEpisodesError } = useQuery({
     queryKey: ["episodes", podcast?.feedUrl],
     queryFn: () => parseRSS(podcast?.feedUrl || ""),
     enabled: !!podcast?.feedUrl,
+    retry: 1,                      // Only retry once on failure (avoid infinite hangs)
+    staleTime: 1000 * 60 * 15,     // 15 min — don't refetch on every focus
+    gcTime: 1000 * 60 * 30,        // Keep in cache for 30 min
   });
 
   React.useEffect(() => {
     if (episodes.length > 0) setPodcastEpisodes(episodes);
   }, [episodes, setPodcastEpisodes]);
+
+  // Stable callbacks for episode row actions — prevents MemoizedEpisodeRow re-renders
+  const handleEpisodePlay = React.useCallback((episode: Episode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (currentEpisode?.id === episode.id) togglePlayPause();
+    else if (podcast) playEpisode(episode, podcast);
+  }, [currentEpisode?.id, togglePlayPause, playEpisode, podcast]);
+
+  const handleEpisodeDownload = React.useCallback((episode: Episode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const downloaded = isDownloaded(episode.id);
+    const progress = getDownloadProgress(episode.id);
+    if (!downloaded && !(progress > 0 && progress < 100) && podcast) {
+      downloadEpisode(episode, podcast);
+    }
+  }, [isDownloaded, getDownloadProgress, downloadEpisode, podcast]);
 
   // Full page skeleton
   if (isLoading) {
@@ -318,15 +337,17 @@ export default function PodcastDetailScreen() {
                       </View>
                     ))}
                   </View>
+                ) : isEpisodesError ? (
+                  <Text style={styles.noEpisodes}>Failed to load episodes. Pull down to retry.</Text>
                 ) : episodes.length === 0 ? (
                   <Text style={styles.noEpisodes}>No episodes available</Text>
                 ) : null}
               </View>
             </>
           }
-          renderItem={({ item: episode }) => {
-            const isCurrentEpisode = currentEpisode?.id === episode.id;
-            const isThisPlaying = isCurrentEpisode && isPlaying;
+          renderItem={React.useCallback(({ item: episode }: { item: Episode }) => {
+            const isCurrentEp = currentEpisode?.id === episode.id;
+            const isThisPlaying = isCurrentEp && isPlaying;
             const downloaded = isDownloaded(episode.id);
             const progress = getDownloadProgress(episode.id);
             
@@ -334,22 +355,15 @@ export default function PodcastDetailScreen() {
               <MemoizedEpisodeRow 
                 episode={episode}
                 podcast={podcast}
-                isCurrentEpisode={isCurrentEpisode}
+                isCurrentEpisode={isCurrentEp}
                 isThisPlaying={isThisPlaying}
                 downloaded={downloaded}
                 progress={progress}
-                onPlay={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  if (isCurrentEpisode) togglePlayPause();
-                  else playEpisode(episode, podcast);
-                }}
-                onDownload={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  if (!downloaded && !(progress > 0 && progress < 100)) downloadEpisode(episode, podcast);
-                }}
+                onPlay={() => handleEpisodePlay(episode)}
+                onDownload={() => handleEpisodeDownload(episode)}
               />
             );
-          }}
+          }, [currentEpisode?.id, isPlaying, isDownloaded, getDownloadProgress, podcast, handleEpisodePlay, handleEpisodeDownload])}
         />
       </SafeAreaView>
     </View>
@@ -361,7 +375,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   loading: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: Colors.black },
   errorText: { color: Colors.primaryText, fontSize: 16 },
-  header: { paddingHorizontal: 16, paddingVertical: 8 },
+  header: { paddingHorizontal: 20, paddingVertical: 8 },
   backButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.whiteAlpha10, justifyContent: "center", alignItems: 'center' },
   content: { flex: 1 },
   scrollContent: { paddingBottom: 120 },
@@ -373,7 +387,7 @@ const styles = StyleSheet.create({
     shadowRadius: 32,
     elevation: 20,
   },
-  artwork: { width: 220, height: 220, borderRadius: 16, backgroundColor: Colors.surface },
+  artwork: { width: 220, height: 220, borderRadius: 14, backgroundColor: Colors.surface },
   podcastName: {
     fontSize: 22, fontWeight: "700" as const, color: Colors.primaryText,
     textAlign: "center", marginTop: 20, paddingHorizontal: 32, letterSpacing: -0.3,
@@ -393,7 +407,7 @@ const styles = StyleSheet.create({
   followButtonTextActive: { color: Colors.accent },
   playLatestButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: Colors.accent, borderRadius: 28, marginHorizontal: 32,
+    backgroundColor: Colors.accent, borderRadius: 24, marginHorizontal: 32,
     marginTop: 16, paddingVertical: 14, gap: 10,
     shadowColor: Colors.accent, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4, shadowRadius: 12, elevation: 8,
@@ -406,7 +420,7 @@ const styles = StyleSheet.create({
   },
   noEpisodes: { color: Colors.secondaryText, fontSize: 14, textAlign: "center", marginTop: 32 },
   episodeRow: {
-    flexDirection: "row", alignItems: "center", paddingVertical: 14,
+    flexDirection: "row", alignItems: "center", paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border,
   },
   episodeLeft: { flexDirection: "row", flex: 1, gap: 12, alignItems: 'center' },

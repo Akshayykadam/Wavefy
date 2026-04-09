@@ -36,12 +36,11 @@ export async function checkForNewEpisodes(): Promise<NotificationItem[]> {
 
     const lastSeenRaw = await AsyncStorage.getItem(LAST_SEEN_KEY);
     const lastSeen: Record<string, string> = lastSeenRaw ? JSON.parse(lastSeenRaw) : {};
-    const newNotifications: NotificationItem[] = [];
 
-    // Check up to 10 podcasts to stay within background time limits
-    for (const podcast of followedPodcasts.slice(0, 10)) {
+    // Check feeds in parallel (not sequentially) — max wait = single timeout instead of N × timeout
+    const feedChecks = followedPodcasts.slice(0, 10).map(async (podcast: any) => {
       try {
-        if (!podcast.feedUrl) continue;
+        if (!podcast.feedUrl) return null;
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
@@ -56,7 +55,7 @@ export async function checkForNewEpisodes(): Promise<NotificationItem[]> {
 
         // Parse first <item> from RSS
         const itemMatch = text.match(/<item[^>]*>([\s\S]*?)<\/item>/i);
-        if (!itemMatch) continue;
+        if (!itemMatch) return null;
 
         const item = itemMatch[1];
         const titleMatch = item.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
@@ -70,10 +69,10 @@ export async function checkForNewEpisodes(): Promise<NotificationItem[]> {
           ? guidMatch[1].replace(/<[^>]*>/g, '').trim()
           : '';
 
-        if (!episodeId || !episodeTitle) continue;
+        if (!episodeId || !episodeTitle) return null;
 
         const podcastKey = String(podcast.collectionId);
-        if (lastSeen[podcastKey] === episodeId) continue;
+        if (lastSeen[podcastKey] === episodeId) return null;
 
         // New episode found!
         lastSeen[podcastKey] = episodeId;
@@ -89,8 +88,6 @@ export async function checkForNewEpisodes(): Promise<NotificationItem[]> {
           read: false,
         };
 
-        newNotifications.push(notifItem);
-
         // Fire a local push notification
         await Notifications.scheduleNotificationAsync({
           content: {
@@ -101,10 +98,19 @@ export async function checkForNewEpisodes(): Promise<NotificationItem[]> {
           },
           trigger: null, // immediately
         });
+
+        return notifItem;
       } catch (e) {
         // Skip failed feeds silently
+        return null;
       }
-    }
+    });
+
+    const results = await Promise.allSettled(feedChecks);
+    const newNotifications: NotificationItem[] = results
+      .filter((r): r is PromiseFulfilledResult<NotificationItem | null> => r.status === 'fulfilled' && r.value !== null)
+      .map(r => r.value!);
+
 
     // Persist last seen
     await AsyncStorage.setItem(LAST_SEEN_KEY, JSON.stringify(lastSeen));

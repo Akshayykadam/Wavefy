@@ -63,8 +63,14 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
         }
     };
 
+    // Ref to latest downloads state — avoids stale closure in downloadEpisode
+    const downloadsRef = useRef(downloads);
+    useEffect(() => { downloadsRef.current = downloads; }, [downloads]);
+
     const downloadEpisode = useCallback(async (episode: Episode, podcast: Podcast) => {
-        if (downloads[episode.id] && downloads[episode.id].status === 'completed') {
+        // Use ref to get latest state \u2014 the [] deps mean this callback never re-creates,
+        // but we still need to check current downloads to avoid re-downloading.
+        if (downloadsRef.current[episode.id] && downloadsRef.current[episode.id].status === 'completed') {
             return; // Already downloaded
         }
 

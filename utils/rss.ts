@@ -50,7 +50,24 @@ export const parsePscChapters = (itemXml: string): Chapter[] => {
 
 export const parseRSS = async (url: string): Promise<Episode[]> => {
   try {
-    const response = await fetch(url);
+    // Abort if the feed takes longer than 12 seconds to respond.
+    // Without this, a slow/dead server hangs the JS thread indefinitely,
+    // making the entire app unresponsive.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+    let response: Response;
+    try {
+      response = await fetch(url, { signal: controller.signal });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      console.warn(`[RSS] HTTP ${response.status} for ${url}`);
+      return [];
+    }
+
     const text = await response.text();
     const episodes: Episode[] = [];
     const itemMatches = text.match(/<item[^>]*>([\s\S]*?)<\/item>/gi);

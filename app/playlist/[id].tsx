@@ -257,13 +257,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 8,
   },
   backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: Colors.whiteAlpha10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
     height: 180,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
     gap: 2,
   },
@@ -297,13 +297,13 @@ const styles = StyleSheet.create({
   singleArt: {
     width: 180,
     height: 180,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: Colors.surface,
   },
   emptyArt: {
     width: 180,
     height: 180,
-    borderRadius: 16,
+    borderRadius: 14,
     backgroundColor: Colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
@@ -349,13 +349,13 @@ const styles = StyleSheet.create({
   episodeItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     gap: 12,
   },
   episodeArt: {
     width: 48,
     height: 48,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: Colors.surface,
   },
   episodeInfo: {
@@ -366,10 +366,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primaryText,
     marginBottom: 2,
+    letterSpacing: -0.2,
   },
   episodeMeta: {
     fontSize: 12,
     color: Colors.secondaryText,
+    letterSpacing: -0.1,
   },
   removeBtn: {
     width: 32,
@@ -385,7 +387,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: Colors.primaryText,
     marginTop: 16,

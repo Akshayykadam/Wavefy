@@ -122,7 +122,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     return () => clearInterval(interval);
   }, [updateState]);
 
-  const progress = useProgress();
+  const progress = useProgress(1000); // Throttle to 1-second intervals — prevents 4x/sec re-renders across entire app
 
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -445,7 +445,13 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       // Legacy support: if history item lacks feedUrl, lookup from iTunes first
       if (!finalFeedUrl && progressData.podcastId) {
         try {
-          const response = await fetch(`https://itunes.apple.com/lookup?id=${progressData.podcastId}`);
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 8000);
+          const response = await fetch(
+            `https://itunes.apple.com/lookup?id=${progressData.podcastId}`,
+            { signal: controller.signal }
+          );
+          clearTimeout(tid);
           const data = await response.json();
           if (data.results && data.results.length > 0) {
             finalFeedUrl = data.results[0].feedUrl;
@@ -455,10 +461,14 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         }
       }
 
-      // Fast-hydrate if we have feedUrl
+      // Fast-hydrate if we have feedUrl — with timeout so a dead feed can't hang the app
       if (finalFeedUrl) {
         try {
-          const episodes = await parseRSS(finalFeedUrl);
+          const rssPromise = parseRSS(finalFeedUrl);
+          const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('RSS hydration timeout')), 10000)
+          );
+          const episodes = await Promise.race([rssPromise, timeoutPromise]) as Episode[];
           setPodcastEpisodes(episodes);
           finalEpisode = episodes.find(e => e.id === progressData.episodeId);
         } catch (e) {
@@ -745,13 +755,19 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     episodeProgressMap,
   ]);
 
+  // Use refs for handleTrackEnd to prevent stale closures in the event listener.
+  // useTrackPlayerEvents registers only once — without refs, it would capture the initial
+  // handleTrackEnd and never see queue/findNextEpisode updates.
+  const handleTrackEndRef = useRef(handleTrackEnd);
+  useEffect(() => { handleTrackEndRef.current = handleTrackEnd; }, [handleTrackEnd]);
+
   // Listen for track end event
   useTrackPlayerEvents([TrackPlayerEvent.PlaybackQueueEnded], async (event) => {
     if (event.type === TrackPlayerEvent.PlaybackQueueEnded) {
       console.log('PlayerContext - Track Ended');
-      // Small delay to ensure state is settled
+      // Small delay to ensure state is settled, then call latest ref
       setTimeout(() => {
-        handleTrackEnd();
+        handleTrackEndRef.current();
       }, 500);
     }
   });

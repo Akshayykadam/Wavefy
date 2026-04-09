@@ -786,8 +786,8 @@ const styles = StyleSheet.create({
   // Up Next Preview
   upNextPreview: {
     backgroundColor: Colors.cardBg,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 16,
   },
   upNextHeader: {
@@ -801,6 +801,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primaryText,
     flex: 1,
+    letterSpacing: -0.2,
   },
   upNextCount: {
     fontSize: 12,
@@ -809,6 +810,7 @@ const styles = StyleSheet.create({
   upNextEpisode: {
     fontSize: 13,
     color: Colors.secondaryText,
+    letterSpacing: -0.1,
   },
 
   // Queue Badge
@@ -837,8 +839,8 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: 20,
     paddingBottom: 40,
     borderWidth: 1,
@@ -901,7 +903,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 24,
     backgroundColor: Colors.secondaryText + '33',
     borderWidth: 1,
     borderColor: Colors.border,
@@ -926,8 +928,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.border,
-    padding: 16,
-    borderRadius: 16,
+    padding: 14,
+    borderRadius: 14,
     justifyContent: 'center',
     marginTop: 8,
   },
@@ -971,7 +973,7 @@ const styles = StyleSheet.create({
   playlistItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
     gap: 12,
