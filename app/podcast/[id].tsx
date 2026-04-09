@@ -109,6 +109,8 @@ const MemoizedEpisodeRow = React.memo(({
   );
 });
 
+MemoizedEpisodeRow.displayName = "MemoizedEpisodeRow";
+
 export default function PodcastDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -154,6 +156,26 @@ export default function PodcastDetailScreen() {
       downloadEpisode(episode, podcast);
     }
   }, [isDownloaded, getDownloadProgress, downloadEpisode, podcast]);
+
+  const renderEpisodeItem = React.useCallback(({ item: episode }: { item: Episode }) => {
+    const isCurrentEp = currentEpisode?.id === episode.id;
+    const isThisPlaying = isCurrentEp && isPlaying;
+    const downloaded = isDownloaded(episode.id);
+    const progress = getDownloadProgress(episode.id);
+    
+    return (
+      <MemoizedEpisodeRow 
+        episode={episode}
+        podcast={podcast!}
+        isCurrentEpisode={isCurrentEp}
+        isThisPlaying={isThisPlaying}
+        downloaded={downloaded}
+        progress={progress}
+        onPlay={() => handleEpisodePlay(episode)}
+        onDownload={() => handleEpisodeDownload(episode)}
+      />
+    );
+  }, [currentEpisode?.id, isPlaying, isDownloaded, getDownloadProgress, podcast, handleEpisodePlay, handleEpisodeDownload]);
 
   // Full page skeleton
   if (isLoading) {
@@ -345,25 +367,7 @@ export default function PodcastDetailScreen() {
               </View>
             </>
           }
-          renderItem={React.useCallback(({ item: episode }: { item: Episode }) => {
-            const isCurrentEp = currentEpisode?.id === episode.id;
-            const isThisPlaying = isCurrentEp && isPlaying;
-            const downloaded = isDownloaded(episode.id);
-            const progress = getDownloadProgress(episode.id);
-            
-            return (
-              <MemoizedEpisodeRow 
-                episode={episode}
-                podcast={podcast}
-                isCurrentEpisode={isCurrentEp}
-                isThisPlaying={isThisPlaying}
-                downloaded={downloaded}
-                progress={progress}
-                onPlay={() => handleEpisodePlay(episode)}
-                onDownload={() => handleEpisodeDownload(episode)}
-              />
-            );
-          }, [currentEpisode?.id, isPlaying, isDownloaded, getDownloadProgress, podcast, handleEpisodePlay, handleEpisodeDownload])}
+          renderItem={renderEpisodeItem}
         />
       </SafeAreaView>
     </View>

@@ -183,11 +183,21 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
         return downloads[episodeId]?.progress || 0;
     }, [downloads]);
 
+    // Returns the local file URI for a completed download, or null
+    const getLocalUri = useCallback((episodeId: string): string | null => {
+        const entry = downloads[episodeId];
+        if (entry?.status === 'completed' && entry.localUri) {
+            return entry.localUri;
+        }
+        return null;
+    }, [downloads]);
+
     return {
         downloads,
         downloadEpisode,
         deleteDownload,
         isDownloaded,
         getDownloadProgress,
+        getLocalUri,
     };
 });

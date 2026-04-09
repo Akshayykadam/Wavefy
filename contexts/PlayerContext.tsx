@@ -12,8 +12,10 @@ import TrackPlayer, {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Episode, Podcast } from '@/types/podcast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { parseRSS } from '@/utils/rss';
+import { useDownloads } from '@/contexts/DownloadContext';
+import { useNetwork } from '@/contexts/NetworkContext';
 
 const STORAGE_KEYS = {
   EPISODE: 'podcat_current_episode',
@@ -83,6 +85,15 @@ const setupPlayer = async () => {
 };
 
 export const [PlayerProvider, usePlayer] = createContextHook(() => {
+  const { getLocalUri, isDownloaded: isEpisodeDownloaded } = useDownloads();
+  const { isOffline } = useNetwork();
+  // Use ref for isOffline so callbacks always see latest value
+  const isOfflineRef = useRef(isOffline);
+  useEffect(() => { isOfflineRef.current = isOffline; }, [isOffline]);
+  // Use ref for getLocalUri so it doesn't cause callback re-creation
+  const getLocalUriRef = useRef(getLocalUri);
+  useEffect(() => { getLocalUriRef.current = getLocalUri; }, [getLocalUri]);
+
   const [currentEpisode, setCurrentEpisode] = useState<Episode | null>(null);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast | null>(null);
   const [queue, setQueue] = useState<Episode[]>([]);
@@ -322,10 +333,11 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
         // Restore track to player but don't play
         if (episode.audioUrl) {
+          const localUri = getLocalUriRef.current(episode.id);
           await TrackPlayer.reset();
           await TrackPlayer.add({
             id: String(episode.id),
-            url: episode.localUri || episode.audioUrl,
+            url: localUri || episode.localUri || episode.audioUrl,
             title: episode.title,
             artist: podcast.collectionName,
             artwork: episode.artwork || podcast.artworkUrl600,
@@ -391,6 +403,20 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     hasUserInteracted.current = true;
     sleepTimerTriggeredRef.current = false; // Reset sleep timer flag
 
+    // Always prefer local file if downloaded
+    const localUri = getLocalUriRef.current(episode.id);
+    const trackUrl = localUri || episode.localUri || episode.audioUrl;
+
+    // Offline guard: if no local file and offline, alert and bail
+    if (!localUri && !episode.localUri && isOfflineRef.current) {
+      Alert.alert(
+        "Offline",
+        "This episode isn't downloaded. Connect to the internet to stream it.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     // Reset seek if new episode
     if (episode.id !== currentEpisode?.id) {
       initialSeekPosition.current = seekPosition ?? null;
@@ -408,7 +434,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
     await TrackPlayer.load({
       id: String(episode.id),
-      url: episode.localUri || episode.audioUrl,
+      url: trackUrl,
       title: episode.title,
       artist: podcast.collectionName,
       artwork: episode.artwork || podcast.artworkUrl600,
@@ -440,39 +466,45 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       let finalEpisode: Episode | undefined;
       let finalPodcast: Podcast | undefined;
 
+      // Check if this episode is downloaded locally
+      const localUri = getLocalUriRef.current(progressData.episodeId);
+
       let finalFeedUrl = progressData.feedUrl;
 
-      // Legacy support: if history item lacks feedUrl, lookup from iTunes first
-      if (!finalFeedUrl && progressData.podcastId) {
-        try {
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 8000);
-          const response = await fetch(
-            `https://itunes.apple.com/lookup?id=${progressData.podcastId}`,
-            { signal: controller.signal }
-          );
-          clearTimeout(tid);
-          const data = await response.json();
-          if (data.results && data.results.length > 0) {
-            finalFeedUrl = data.results[0].feedUrl;
+      // Skip all network calls if offline
+      if (!isOfflineRef.current) {
+        // Legacy support: if history item lacks feedUrl, lookup from iTunes first
+        if (!finalFeedUrl && progressData.podcastId) {
+          try {
+            const controller = new AbortController();
+            const tid = setTimeout(() => controller.abort(), 8000);
+            const response = await fetch(
+              `https://itunes.apple.com/lookup?id=${progressData.podcastId}`,
+              { signal: controller.signal }
+            );
+            clearTimeout(tid);
+            const data = await response.json();
+            if (data.results && data.results.length > 0) {
+              finalFeedUrl = data.results[0].feedUrl;
+            }
+          } catch (e) {
+            console.warn('iTunes lookup failed during hydration', e);
           }
-        } catch (e) {
-          console.warn('iTunes lookup failed during hydration', e);
         }
-      }
 
-      // Fast-hydrate if we have feedUrl — with timeout so a dead feed can't hang the app
-      if (finalFeedUrl) {
-        try {
-          const rssPromise = parseRSS(finalFeedUrl);
-          const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('RSS hydration timeout')), 10000)
-          );
-          const episodes = await Promise.race([rssPromise, timeoutPromise]) as Episode[];
-          setPodcastEpisodes(episodes);
-          finalEpisode = episodes.find(e => e.id === progressData.episodeId);
-        } catch (e) {
-          console.warn('Failed to hydrate from RSS', e);
+        // Fast-hydrate if we have feedUrl — with timeout so a dead feed can't hang the app
+        if (finalFeedUrl) {
+          try {
+            const rssPromise = parseRSS(finalFeedUrl);
+            const timeoutPromise = new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('RSS hydration timeout')), 10000)
+            );
+            const episodes = await Promise.race([rssPromise, timeoutPromise]) as Episode[];
+            setPodcastEpisodes(episodes);
+            finalEpisode = episodes.find(e => e.id === progressData.episodeId);
+          } catch (e) {
+            console.warn('Failed to hydrate from RSS', e);
+          }
         }
       }
 
@@ -487,6 +519,21 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
           artwork: progressData.episodeArtwork || progressData.podcastArtwork || '',
           podcastTitle: progressData.podcastTitle,
         };
+      }
+
+      // Attach local URI if available
+      if (localUri) {
+        finalEpisode = { ...finalEpisode, localUri };
+      }
+
+      // If offline and no local file and no audio URL, can't play
+      if (isOfflineRef.current && !localUri && !finalEpisode.audioUrl) {
+        Alert.alert(
+          "Offline",
+          "This episode isn't downloaded. Connect to the internet to stream it.",
+          [{ text: "OK" }]
+        );
+        return;
       }
 
       finalPodcast = {

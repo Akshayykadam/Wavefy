@@ -11,6 +11,7 @@ import { useLikedEpisodes } from "@/contexts/LikedEpisodesContext";
 import { useDownloads } from "@/contexts/DownloadContext";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { usePlaylist } from "@/contexts/PlaylistContext";
+import { useNetwork } from "@/contexts/NetworkContext";
 import { Alert, TextInput, ScrollView } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -24,7 +25,17 @@ export default function LibraryScreen() {
   const { downloads, deleteDownload } = useDownloads();
   const { playEpisode, setQueue, resumeEpisode, getListeningHistory, removeHistoryItem, clearHistory } = usePlayer();
   const { playlists, createPlaylist, deletePlaylist } = usePlaylist();
+  const { isOffline } = useNetwork();
   const [activeTab, setActiveTab] = useState<TabKey>('following');
+  const prevOfflineRef = React.useRef(isOffline);
+
+  // Auto-switch to Downloads tab when going offline
+  React.useEffect(() => {
+    if (isOffline && !prevOfflineRef.current) {
+      switchTab('downloads');
+    }
+    prevOfflineRef.current = isOffline;
+  }, [isOffline]);
 
   // Memoize expensive derived data to avoid recomputing on every render
   const listeningHistory = React.useMemo(
@@ -227,7 +238,16 @@ export default function LibraryScreen() {
                 style={styles.tabButton}
                 onPress={() => switchTab(key)}
               >
-                <Text style={[styles.tabText, isActive && styles.activeTabText]}>{tab}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={[styles.tabText, isActive && styles.activeTabText]}>{tab}</Text>
+                  {key === 'downloads' && downloadsArray.filter((d: any) => d.status === 'completed').length > 0 && (
+                    <View style={styles.downloadBadge}>
+                      <Text style={styles.downloadBadgeText}>
+                        {downloadsArray.filter((d: any) => d.status === 'completed').length}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </Pressable>
             );
           })}
@@ -613,5 +633,19 @@ const styles = StyleSheet.create({
   playlistCount: {
     fontSize: 12,
     color: Colors.secondaryText,
+  },
+  downloadBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  downloadBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
   },
 });

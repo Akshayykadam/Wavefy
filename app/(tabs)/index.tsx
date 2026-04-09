@@ -21,6 +21,7 @@ import SkeletonLoader from "@/components/SkeletonLoader";
 import ContinueListeningCard from "@/components/ContinueListeningCard";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useRecommendations } from "@/contexts/RecommendationContext";
+import { useNetwork } from "@/contexts/NetworkContext";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.42;
@@ -75,27 +76,32 @@ export default function HomeScreen() {
   const halfPlayed = getHalfPlayedEpisodes();
   const { unreadCount } = useNotifications();
   const { recommendations, forYouQueue, isLoading: recsLoading, refreshRecommendations } = useRecommendations();
+  const { isOffline } = useNetwork();
 
   const activeCategories = MOOD_CATEGORIES[activeMood];
 
   const { data: featured = [], isLoading: featuredLoading } = useQuery({
     queryKey: ["featured", activeMood],
     queryFn: () => fetchFeaturedPodcasts(activeMood),
+    enabled: !isOffline,
   });
 
   const { data: cat1 = [], isLoading: cat1Loading } = useQuery({
     queryKey: ["category", activeCategories[0]],
     queryFn: () => fetchPodcastsByCategory(activeCategories[0]),
+    enabled: !isOffline,
   });
 
   const { data: cat2 = [], isLoading: cat2Loading } = useQuery({
     queryKey: ["category", activeCategories[1]],
     queryFn: () => fetchPodcastsByCategory(activeCategories[1]),
+    enabled: !isOffline,
   });
 
   const { data: cat3 = [], isLoading: cat3Loading } = useQuery({
     queryKey: ["category", activeCategories[2]],
     queryFn: () => fetchPodcastsByCategory(activeCategories[2]),
+    enabled: !isOffline,
   });
 
   const renderPodcastCard = (podcast: Podcast) => (
@@ -263,7 +269,7 @@ export default function HomeScreen() {
           )}
 
           {/* Recommended For You */}
-          {recsLoading ? (
+          {!isOffline && recsLoading ? (
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
                 <Sparkles color={Colors.accent} size={20} />
@@ -324,7 +330,7 @@ export default function HomeScreen() {
           )}
 
           {/* Your Daily Mix */}
-          {recsLoading ? (
+          {!isOffline && recsLoading ? (
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
                 <Zap color={Colors.accent} size={20} />
@@ -388,23 +394,29 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Featured */}
-          {featuredLoading ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Featured Today</Text>
-              <SkeletonLoader style={{ width: width - 32, height: width * 0.65, marginHorizontal: 16, borderRadius: 20 }} />
-            </View>
-          ) : featured.length > 0 ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Featured Today</Text>
-              <HeroCarousel podcasts={featured} />
-            </View>
-          ) : null}
+          {/* Featured — only when online */}
+          {!isOffline && (
+            featuredLoading ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Featured Today</Text>
+                <SkeletonLoader style={{ width: width - 32, height: width * 0.65, marginHorizontal: 16, borderRadius: 20 }} />
+              </View>
+            ) : featured.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Featured Today</Text>
+                <HeroCarousel podcasts={featured} />
+              </View>
+            ) : null
+          )}
 
-          {/* Category sections */}
-          {renderCategorySection(activeCategories[0], cat1, cat1Loading)}
-          {renderCategorySection(activeCategories[1], cat2, cat2Loading)}
-          {renderCategorySection(activeCategories[2], cat3, cat3Loading)}
+          {/* Category sections — only when online */}
+          {!isOffline && (
+            <>
+              {renderCategorySection(activeCategories[0], cat1, cat1Loading)}
+              {renderCategorySection(activeCategories[1], cat2, cat2Loading)}
+              {renderCategorySection(activeCategories[2], cat3, cat3Loading)}
+            </>
+          )}
 
           <View style={styles.bottomPadding} />
         </ScrollView>

@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Search as SearchIcon, X, Cpu, Crosshair, Laugh, Newspaper, Briefcase, Trophy, HeartPulse, FlaskConical } from "lucide-react-native";
+import { Search as SearchIcon, X, Cpu, Crosshair, Laugh, Newspaper, Briefcase, Trophy, HeartPulse, FlaskConical, WifiOff } from "lucide-react-native";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -20,6 +20,7 @@ import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { Podcast } from "@/types/podcast";
 import SkeletonLoader from "@/components/SkeletonLoader";
+import { useNetwork } from "@/contexts/NetworkContext";
 
 const { width } = Dimensions.get("window");
 const GRID_GAP = 12;
@@ -39,6 +40,7 @@ const GENRE_TILES = [
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { isOffline } = useNetwork();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -84,7 +86,7 @@ export default function SearchScreen() {
       const data = await response.json();
       return data.results as Podcast[];
     },
-    enabled: debouncedQuery.length > 0,
+    enabled: debouncedQuery.length > 0 && !isOffline,
   });
 
   const addToHistory = useCallback((term: string) => {
@@ -170,15 +172,16 @@ export default function SearchScreen() {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Podcasts, episodes, creators..."
+            placeholder={isOffline ? "Search unavailable offline" : "Podcasts, episodes, creators..."}
             placeholderTextColor={Colors.secondaryText}
-            value={query}
-            onChangeText={setQuery}
+            value={isOffline ? "" : query}
+            onChangeText={isOffline ? undefined : setQuery}
             returnKeyType="search"
-            onSubmitEditing={() => handleSearch(query)}
+            onSubmitEditing={isOffline ? undefined : () => handleSearch(query)}
             selectionColor={Colors.accent}
+            editable={!isOffline}
           />
-          {query.length > 0 && (
+          {query.length > 0 && !isOffline && (
             <Pressable onPress={() => setQuery("")} style={styles.clearButton}>
               <View style={styles.clearButtonInner}>
                 <X color={Colors.black} size={12} />
@@ -187,7 +190,15 @@ export default function SearchScreen() {
           )}
         </View>
 
-        {query.length === 0 ? (
+        {isOffline ? (
+          <View style={styles.offlineState}>
+            <WifiOff color={Colors.secondaryText} size={48} />
+            <Text style={styles.offlineTitle}>You&apos;re offline</Text>
+            <Text style={styles.offlineSubtitle}>
+              Search requires an internet connection.{"\n"}Listen to your downloads from the Library tab.
+            </Text>
+          </View>
+        ) : query.length === 0 ? (
           <ScrollView
             style={styles.content}
             showsVerticalScrollIndicator={false}
@@ -469,5 +480,26 @@ const styles = StyleSheet.create({
   emptyStateSubtext: {
     fontSize: 14,
     color: Colors.secondaryText,
+  },
+  offlineState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  offlineTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.primaryText,
+    marginTop: 20,
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  offlineSubtitle: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    textAlign: 'center',
+    lineHeight: 20,
+    letterSpacing: -0.1,
   },
 });

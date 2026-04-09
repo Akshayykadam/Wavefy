@@ -10,7 +10,9 @@ import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PlaylistProvider } from "@/contexts/PlaylistContext";
 import { RecommendationProvider } from "@/contexts/RecommendationContext";
+import { NetworkProvider } from "@/contexts/NetworkContext";
 import MiniPlayer from "@/components/MiniPlayer";
+import OfflineBanner from "@/components/OfflineBanner";
 import { DownloadProvider } from "@/contexts/DownloadContext";
 
 // Import background task definitions so they're registered at module level
@@ -107,22 +109,25 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <FollowedPodcastsProvider>
-          <LikedEpisodesProvider>
-            <DownloadProvider>
-              <PlayerProvider>
-                <NotificationProvider>
-                  <PlaylistProvider>
-                    <RecommendationProvider>
-                      <RootLayoutNav />
-                      <MiniPlayer />
-                    </RecommendationProvider>
-                  </PlaylistProvider>
-                </NotificationProvider>
-              </PlayerProvider>
-            </DownloadProvider>
-          </LikedEpisodesProvider>
-        </FollowedPodcastsProvider>
+        <NetworkProvider>
+          <FollowedPodcastsProvider>
+            <LikedEpisodesProvider>
+              <DownloadProvider>
+                <PlayerProvider>
+                  <NotificationProvider>
+                    <PlaylistProvider>
+                      <RecommendationProvider>
+                        <RootLayoutNav />
+                        <MiniPlayer />
+                        <OfflineBanner />
+                      </RecommendationProvider>
+                    </PlaylistProvider>
+                  </NotificationProvider>
+                </PlayerProvider>
+              </DownloadProvider>
+            </LikedEpisodesProvider>
+          </FollowedPodcastsProvider>
+        </NetworkProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

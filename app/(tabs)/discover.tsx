@@ -11,11 +11,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { TrendingUp, Star, Flame } from 'lucide-react-native';
+import { TrendingUp, Star, Flame, WifiOff } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { Podcast } from '@/types/podcast';
 import SkeletonLoader from '@/components/SkeletonLoader';
+import { useNetwork } from '@/contexts/NetworkContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.42;
@@ -64,17 +65,20 @@ const getRankColor = (index: number) => {
 
 export default function DiscoverScreen() {
   const router = useRouter();
+  const { isOffline } = useNetwork();
 
   const { data: topPodcasts = [], isLoading: topLoading } = useQuery({
     queryKey: ['top-podcasts'],
     queryFn: () => fetchTopPodcasts(25),
     staleTime: 1000 * 60 * 30,
+    enabled: !isOffline,
   });
 
   const { data: editorPicks = [], isLoading: editorLoading } = useQuery({
     queryKey: ['editor-picks'],
     queryFn: () => fetchByCategory('best podcasts 2024'),
     staleTime: 1000 * 60 * 30,
+    enabled: !isOffline,
   });
 
   const navigatePodcast = (id: number) => {
@@ -150,6 +154,15 @@ export default function DiscoverScreen() {
           <Text style={styles.headerSubtitle}>Find your next favorite show</Text>
         </View>
 
+        {isOffline ? (
+          <View style={styles.offlineState}>
+            <WifiOff color={Colors.secondaryText} size={48} />
+            <Text style={styles.offlineTitle}>You&apos;re offline</Text>
+            <Text style={styles.offlineSubtitle}>
+              Browse your downloads in Library to listen offline
+            </Text>
+          </View>
+        ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
@@ -158,7 +171,7 @@ export default function DiscoverScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Star color={Colors.accent} size={18} fill={Colors.accent} />
-              <Text style={styles.sectionTitle}>Editor's Picks</Text>
+              <Text style={styles.sectionTitle}>Editor&apos;s Picks</Text>
             </View>
             {editorLoading ? renderSkeletonCards() : (
               <ScrollView
@@ -220,6 +233,7 @@ export default function DiscoverScreen() {
 
           <View style={{ height: 120 }} />
         </ScrollView>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -355,5 +369,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.accent,
     fontWeight: '500',
+  },
+  offlineState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  offlineTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.primaryText,
+    marginTop: 20,
+    marginBottom: 8,
+    letterSpacing: -0.3,
+  },
+  offlineSubtitle: {
+    fontSize: 14,
+    color: Colors.secondaryText,
+    textAlign: 'center',
+    lineHeight: 20,
+    letterSpacing: -0.1,
   },
 });
