@@ -52,6 +52,7 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
   const lastRefresh = useRef<number>(0);
   const isFetchingRef = useRef(false);
   const initialLoadDone = useRef(false);
+  const hasCachedDataRef = useRef(false);
   const interactionHandle = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
 
   const { episodeProgressMap } = usePlayer();
@@ -113,6 +114,7 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
           setForYouQueue(cached.forYouQueue);
           lastRefresh.current = cached.timestamp;
           initialLoadDone.current = true;
+          hasCachedDataRef.current = true;
         }
       }
     } catch (e) {
@@ -140,34 +142,51 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
     // Only show loading skeletons if we have NO cached data to display.
     // If we already have recommendations, refresh silently in the background
     // so the user can still navigate tabs freely.
-    const hasCachedData = recommendations.length > 0 || forYouQueue.length > 0 || initialLoadDone.current;
-    if (!hasCachedData) {
+    if (!hasCachedDataRef.current && !initialLoadDone.current) {
       setIsLoading(true);
     }
 
     try {
-      // Step 1: Build user profile
+      // Step 1: Build user profile (pure computation, fast)
       const profile = buildUserProfile(
         followedPodcasts,
         likedEpisodes,
         episodeProgressMap,
         playlists,
       );
-      setUserProfile(profile);
 
-      // Step 2: Fetch and score recommendations (parallel with queue)
+      // Yield to the UI thread before starting network I/O
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Step 2: Fetch recommendations and queue with a timeout
+      // so a slow RSS feed can't freeze the app indefinitely
+      const fetchWithTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+        Promise.race([
+          promise,
+          new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+        ]);
+
       const [recs, queue] = await Promise.all([
-        fetchRecommendedPodcasts(profile),
-        generatePersonalizedQueue(profile, followedPodcasts),
+        fetchWithTimeout(fetchRecommendedPodcasts(profile), 15000),
+        fetchWithTimeout(generatePersonalizedQueue(profile, followedPodcasts), 15000),
       ]);
 
-      setRecommendations(recs);
-      setForYouQueue(queue);
-      lastRefresh.current = Date.now();
-      initialLoadDone.current = true;
+      // Batch state updates in a single tick via requestAnimationFrame
+      // to avoid multiple re-renders cascading during tab transitions
+      await new Promise<void>(resolve => {
+        requestAnimationFrame(() => {
+          setUserProfile(profile);
+          setRecommendations(recs);
+          setForYouQueue(queue);
+          lastRefresh.current = Date.now();
+          initialLoadDone.current = true;
+          hasCachedDataRef.current = true;
+          resolve();
+        });
+      });
 
-      // Cache results
-      await saveCache(recs, queue);
+      // Cache results (fire-and-forget)
+      saveCache(recs, queue);
 
       console.log('[Recommendations] Refreshed:', {
         profileGenres: profile.topGenres,
@@ -176,13 +195,13 @@ export function RecommendationProvider({ children }: { children: React.ReactNode
       });
     } catch (e) {
       console.error('[Recommendations] Refresh failed:', e);
-      // Reset refresh timer so it tries again
+      // Reset refresh timer so it tries again next cycle
       lastRefresh.current = 0;
     } finally {
       setIsLoading(false);
       isFetchingRef.current = false;
     }
-  }, [followedPodcasts, likedEpisodes, episodeProgressMap, playlists, recommendations.length, forYouQueue.length]);
+  }, [followedPodcasts, likedEpisodes, episodeProgressMap, playlists]);
 
   return (
     <RecommendationContext.Provider value={{

@@ -56,8 +56,13 @@ export default function MiniPlayer() {
     return null;
   }
 
-  const TAB_BAR_HEIGHT = 49;
-  const bottomPosition = insets.bottom + (isTabsScreen ? TAB_BAR_HEIGHT : 0) + 8;
+  // Match the actual tab bar heights from (tabs)/_layout.tsx
+  const actualTabBarHeight = Platform.OS === 'ios'
+    ? 54 + Math.max(insets.bottom, 10)   // iOS: height = 54 + max(bottom, 10)
+    : 60 + (insets.bottom > 0 ? insets.bottom : 8);  // Android: minHeight = 60 + bottom
+
+  // Place mini player 8px above the tab bar (or 8px from safe area on non-tab screens)
+  const bottomPosition = isTabsScreen ? actualTabBarHeight + 8 : insets.bottom + 8;
 
   return (
     <Pressable
