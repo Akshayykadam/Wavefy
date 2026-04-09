@@ -93,16 +93,18 @@ const MemoizedEpisodeRow = React.memo(({
         </View>
       </View>
       <Pressable
-        style={styles.downloadButton}
+        style={[styles.downloadButton, isDownloading && { opacity: 0.8 }]}
         onPress={onDownload}
         disabled={downloaded || isDownloading}
       >
         {isDownloading ? (
-          <ActivityIndicator size="small" color={Colors.secondaryText} />
+          <View style={styles.progressContainer}>
+            <ActivityIndicator size="small" color={Colors.accent} />
+          </View>
         ) : downloaded ? (
-          <Check size={18} color={Colors.accent} />
+          <Check size={20} color={Colors.accent} />
         ) : (
-          <Download size={18} color={Colors.secondaryText} />
+          <Download size={20} color={Colors.secondaryText} />
         )}
       </Pressable>
     </Pressable>
@@ -441,4 +443,6 @@ const styles = StyleSheet.create({
   episodeMeta: { flexDirection: "row" },
   episodeMetaText: { fontSize: 12, color: Colors.secondaryText },
   downloadButton: { padding: 8, justifyContent: 'center', alignItems: 'center' },
+  progressContainer: { justifyContent: 'center', alignItems: 'center' },
+  progressText: { fontSize: 9, color: Colors.accent, fontWeight: '700', marginTop: 4 },
 });

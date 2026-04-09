@@ -154,7 +154,7 @@ export default function LibraryScreen() {
       <View style={styles.episodeInfo}>
         <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.episodeSubtitle}>
-          {item.status === 'downloading' ? `Downloading ${Math.round(item.progress)}%` : (item.podcastName || 'Downloaded')}
+          {item.status === 'downloading' ? `Downloading...` : (item.podcastName || 'Downloaded')}
         </Text>
       </View>
       <Pressable
@@ -446,6 +446,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.secondaryText,
     letterSpacing: -0.2,
+    lineHeight: 20,
+    paddingTop: 2,
+    paddingBottom: 4,
   },
   activeTabText: {
     color: Colors.primaryText,

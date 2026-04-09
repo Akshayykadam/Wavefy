@@ -20,6 +20,7 @@ export interface DownloadedEpisode extends Episode {
 
 export const [DownloadProvider, useDownloads] = createContextHook(() => {
     const [downloads, setDownloads] = useState<{ [id: string]: DownloadedEpisode }>({});
+    const [isLoaded, setIsLoaded] = useState(false);
     const downloadResumables = useRef<{ [id: string]: any }>({}); // Use any for simpler TS handling with Expo
     const downloadProgressThrottle = useRef<{ [id: string]: number }>({});
 
@@ -30,7 +31,8 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
             if (!dirInfo.exists) {
                 await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });
             }
-            loadDownloads();
+            await loadDownloads();
+            setIsLoaded(true);
         })();
     }, []);
 
@@ -54,18 +56,14 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
         }
     };
 
-    const saveDownloads = async (newDownloads: { [id: string]: DownloadedEpisode }) => {
-        try {
-            setDownloads(newDownloads);
-            await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(newDownloads));
-        } catch (e) {
-            console.error('Failed to save downloads', e);
-        }
-    };
-
     // Ref to latest downloads state — avoids stale closure in downloadEpisode
     const downloadsRef = useRef(downloads);
-    useEffect(() => { downloadsRef.current = downloads; }, [downloads]);
+    useEffect(() => { 
+        downloadsRef.current = downloads; 
+        if (isLoaded) {
+            AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(downloads)).catch(() => {});
+        }
+    }, [downloads, isLoaded]);
 
     const downloadEpisode = useCallback(async (episode: Episode, podcast: Podcast) => {
         // Use ref to get latest state \u2014 the [] deps mean this callback never re-creates,
@@ -123,17 +121,15 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
         try {
             const result = await downloadResumable.downloadAsync();
             if (result && result.uri) {
-                const completeEntry: DownloadedEpisode = {
-                    ...newEntry,
-                    status: 'completed',
-                    progress: 100,
-                    localUri: result.uri,
-                };
-
                 setDownloads(prev => {
-                    const updated = { ...prev, [episode.id]: completeEntry };
-                    saveDownloads(updated);
-                    return updated;
+                    const current = prev[episode.id] || newEntry;
+                    const completeEntry: DownloadedEpisode = {
+                        ...current,
+                        status: 'completed',
+                        progress: 100,
+                        localUri: result.uri,
+                    };
+                    return { ...prev, [episode.id]: completeEntry };
                 });
             }
         } catch (e) {
@@ -170,7 +166,6 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
         setDownloads(prev => {
             const updated = { ...prev };
             delete updated[episodeId];
-            AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(updated)).catch(() => { });
             return updated;
         });
     }, [downloads]);

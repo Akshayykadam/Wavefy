@@ -280,7 +280,14 @@ export const generatePersonalizedQueue = async (
     if (!podcast.feedUrl) return [];
 
     try {
+      // Yield before blocking operations
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       const episodes = await parseRSS(podcast.feedUrl);
+      
+      // Yield after parsing completes to let UI breathe
+      await new Promise(resolve => setTimeout(resolve, 10));
+      
       // Take latest 3 unfinished episodes
       return episodes
         .slice(0, 3)

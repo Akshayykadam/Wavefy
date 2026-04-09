@@ -382,22 +382,22 @@ export default function PlayerScreen() {
           <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.modalOverlay} />
         </Pressable>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { position: 'absolute', bottom: 0, left: 0, right: 0 }]}>
           <View style={styles.dragHandle} />
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>More Options</Text>
             <Pressable
               onPress={() => setMenuVisible(false)}
-              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, padding: 4 })}
             >
-              <X color={Colors.primaryText} size={20} />
+              <X color={Colors.primaryText} size={24} />
             </Pressable>
           </View>
 
-          <View style={[styles.menuSection, { marginBottom: 16 }]}>
+          <View style={[styles.menuSection, { marginBottom: 24 }]}>
             <Pressable
               style={({ pressed }) => [
-                styles.menuItem,
+                styles.actionRowButton,
                 { opacity: pressed ? 0.7 : 1 }
               ]}
               onPress={() => {
@@ -405,15 +405,18 @@ export default function PlayerScreen() {
                 setTimeout(() => setPlaylistModalVisible(true), 300);
               }}
             >
-              <Plus size={20} color={Colors.primaryText} />
-              <Text style={styles.menuItemText}>Add to Playlist...</Text>
+              <View style={styles.actionRowIcon}>
+                <Plus size={20} color={Colors.black} />
+              </View>
+              <Text style={styles.actionRowText}>Add to Playlist</Text>
+              <ChevronRight size={20} color={Colors.secondaryText} />
             </Pressable>
           </View>
 
           {/* Sleep Timer */}
           <View style={styles.menuSection}>
             <View style={styles.menuLabelRow}>
-              <Clock size={16} color={Colors.secondaryText} style={{ marginRight: 6 }} />
+              <Clock size={18} color={Colors.secondaryText} style={{ marginRight: 8 }} />
               <Text style={styles.menuLabel}>Sleep Timer</Text>
               {sleepTimer && <Text style={styles.activeLabel}>{sleepTimer}m</Text>}
             </View>
@@ -446,7 +449,10 @@ export default function PlayerScreen() {
 
           {/* Playback Speed */}
           <View style={styles.menuSection}>
-            <Text style={[styles.menuLabel, { marginBottom: 10 }]}>Playback Speed</Text>
+            <View style={styles.menuLabelRow}>
+              <RotateCw size={18} color={Colors.secondaryText} style={{ marginRight: 8 }} />
+              <Text style={styles.menuLabel}>Playback Speed</Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
               {[0.5, 0.8, 1.0, 1.2, 1.5, 2.0].map(speed => (
                 <Pressable
@@ -465,14 +471,13 @@ export default function PlayerScreen() {
           </View>
 
           {/* Download */}
-          <View style={styles.menuSection}>
-            <Text style={[styles.menuLabel, { marginBottom: 10 }]}>Download</Text>
+          <View style={[styles.menuSection, { marginTop: 8 }]}>
             <Pressable
               style={({ pressed }) => [styles.menuButton, { opacity: pressed ? 0.7 : 1 }]}
               onPress={() => {
                 if (isDownloaded(currentEpisode.id)) {
                   deleteDownload(currentEpisode.id);
-                } else if (getDownloadProgress(currentEpisode.id) === 0) {
+                } else if (getDownloadProgress(currentEpisode.id) === 0 || getDownloadProgress(currentEpisode.id) === 100) {
                   downloadEpisode(currentEpisode, currentPodcast);
                 }
               }}
@@ -484,12 +489,12 @@ export default function PlayerScreen() {
                 </>
               ) : isDownloaded(currentEpisode.id) ? (
                 <>
-                  <Check color={Colors.accent} size={16} style={{ marginRight: 8 }} />
-                  <Text style={[styles.menuButtonText, { color: Colors.accent }]}>Downloaded</Text>
+                  <Check color={Colors.black} size={20} style={{ marginRight: 8 }} />
+                  <Text style={[styles.menuButtonText, { color: Colors.black }]}>Downloaded</Text>
                 </>
               ) : (
                 <>
-                  <Download color={Colors.primaryText} size={16} style={{ marginRight: 8 }} />
+                  <Download color={Colors.primaryText} size={20} style={{ marginRight: 8 }} />
                   <Text style={styles.menuButtonText}>Download Episode</Text>
                 </>
               )}
@@ -947,16 +952,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 10,
   },
-  menuItem: {
+  actionRowButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    backgroundColor: Colors.accent + '15',
+    padding: 16,
+    borderRadius: 16,
     gap: 12,
   },
-  menuItemText: {
+  actionRowIcon: {
+    backgroundColor: Colors.accent,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionRowText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: Colors.primaryText,
+    fontWeight: '600',
+    color: Colors.accent,
+    flex: 1,
   },
   playlistModalContent: {
     backgroundColor: Colors.surface,

@@ -69,11 +69,20 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
     }
 
     const text = await response.text();
+    
+    // Yield to the UI thread before heavy regex parsing
+    await new Promise(resolve => setTimeout(resolve, 10));
+    
     const episodes: Episode[] = [];
     const itemMatches = text.match(/<item[^>]*>([\s\S]*?)<\/item>/gi);
     if (!itemMatches) return [];
     
     for (let i = 0; i < Math.min(itemMatches.length, 20); i++) {
+        // Yield periodically to keep UI responsive
+        if (i > 0 && i % 5 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
         const item = itemMatches[i];
         const titleMatch = item.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
         const contentMatch = item.match(/<content:encoded[^>]*>([\s\S]*?)<\/content:encoded>/i);
