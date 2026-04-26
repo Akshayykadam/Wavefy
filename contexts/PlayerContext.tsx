@@ -122,12 +122,19 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   const [continuationSettings, setContinuationSettings] = useState<ContinuationSettings>(DEFAULT_CONTINUATION_SETTINGS);
   const [lastContinuationType, setLastContinuationType] = useState<ContinuationType>('none');
 
+  const isPlayerReadyRef = useRef(false);
+
   const updateState = useCallback(async () => {
-    const state = await TrackPlayer.getPlaybackState();
-    // Handle both object return (v4) and direct state
-    const actualState = (state as any).state || state;
-    setIsPlaying(actualState === State.Playing);
-    setIsLoading(actualState === State.Buffering || actualState === State.Loading);
+    if (!isPlayerReadyRef.current) return;
+    try {
+      const state = await TrackPlayer.getPlaybackState();
+      // Handle both object return (v4) and direct state
+      const actualState = (state as any).state || state;
+      setIsPlaying(actualState === State.Playing);
+      setIsLoading(actualState === State.Buffering || actualState === State.Loading);
+    } catch (e) {
+      // Player not ready yet, ignore
+    }
   }, []);
 
   useTrackPlayerEvents([TrackPlayerEvent.PlaybackState], (event) => {
@@ -137,9 +144,9 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   });
 
-  // Sync state once on mount. Real-time updates handled by TrackPlayerEvent.PlaybackState listener.
+  // Sync state once player is ready. Real-time updates handled by TrackPlayerEvent.PlaybackState listener.
   useEffect(() => {
-    updateState();
+    if (isPlayerReadyRef.current) updateState();
   }, [updateState]);
 
 
@@ -159,6 +166,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   useEffect(() => {
     const init = async () => {
       await setupPlayer();
+      isPlayerReadyRef.current = true;
       setIsPlayerReady(true);
       loadState();
       loadEpisodeProgress();
@@ -397,15 +405,16 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
   // Save position when playback pauses or stops
   useEffect(() => {
+    if (!isPlayerReady) return;
     if (!isPlaying && currentEpisode && currentPodcast) {
       TrackPlayer.getProgress().then(({ position, duration }) => {
         if (position > 0) {
           AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(position)).catch(() => {});
           updateEpisodeProgress(currentEpisode, currentPodcast, position, duration);
         }
-      });
+      }).catch(() => {});
     }
-  }, [isPlaying, currentEpisode, currentPodcast, updateEpisodeProgress]);
+  }, [isPlayerReady, isPlaying, currentEpisode, currentPodcast, updateEpisodeProgress]);
 
   const playEpisode = useCallback(async (episode: Episode, podcast: Podcast, seekPosition?: number) => {
     if (!isPlayerReady) return;

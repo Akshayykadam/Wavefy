@@ -60,51 +60,79 @@ const MemoizedEpisodeRow = React.memo(({
   onDownload: () => void;
 }) => {
   const isDownloading = progress > 0 && progress < 100;
+  // Strip HTML tags from description for plain-text preview
+  const descSnippet = (episode.description || '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+
   return (
     <Pressable
       style={({ pressed }) => [styles.episodeRow, pressed && { backgroundColor: Colors.surface }]}
       onPress={onPlay}
     >
-      <View style={styles.episodeLeft}>
-        <View style={[styles.playIconContainer, isThisPlaying && styles.playIconActive]}>
-          {isThisPlaying ? (
-            <Pause color="#fff" size={14} fill="#fff" />
-          ) : (
-            <Play color={Colors.accent} size={14} fill={Colors.accent} />
+      {/* Thumbnail */}
+      <Image
+        source={{ uri: episode.artwork || podcast.artworkUrl600 }}
+        style={styles.episodeThumb}
+        contentFit="cover"
+      />
+
+      {/* Info block */}
+      <View style={styles.episodeInfo}>
+        <Text 
+          style={[styles.episodeTitle, isCurrentEpisode && { color: Colors.accent }]} 
+          numberOfLines={2}
+          textBreakStrategy="simple"
+        >
+          {episode.title}
+        </Text>
+
+        {descSnippet.length > 0 && (
+          <Text style={styles.episodeDesc} numberOfLines={2}>
+            {descSnippet}
+          </Text>
+        )}
+
+        <View style={styles.episodeMeta}>
+          <View style={[styles.playBadge, isThisPlaying && styles.playBadgeActive]}>
+            {isThisPlaying ? (
+              <Pause color="#fff" size={10} fill="#fff" />
+            ) : (
+              <Play color={Colors.accent} size={10} fill={Colors.accent} />
+            )}
+          </View>
+          <Text style={styles.episodeMetaText}>
+            {formatDate(episode.pubDate)}
+          </Text>
+          <Text style={styles.metaDot}>·</Text>
+          <Text style={styles.episodeMetaText}>
+            {formatDuration(episode.duration)}
+          </Text>
+          {downloaded && (
+            <>
+              <Text style={styles.metaDot}>·</Text>
+              <Check size={11} color={Colors.success} />
+            </>
           )}
         </View>
-        <View style={styles.episodeInfo}>
-          <Text 
-            style={[styles.episodeTitle, isCurrentEpisode && { color: Colors.accent }]} 
-            numberOfLines={2}
-            textBreakStrategy="simple"
-          >
-            {episode.title}
-          </Text>
-          <View style={styles.episodeMeta}>
-            <Text style={styles.episodeMetaText}>
-              {formatDate(episode.pubDate)}
-            </Text>
-            <Text style={styles.episodeMetaText}> · </Text>
-            <Text style={styles.episodeMetaText}>
-              {formatDuration(episode.duration)}
-            </Text>
-          </View>
-        </View>
       </View>
+
+      {/* Download */}
       <Pressable
         style={[styles.downloadButton, isDownloading && { opacity: 0.8 }]}
         onPress={onDownload}
         disabled={downloaded || isDownloading}
       >
         {isDownloading ? (
-          <View style={styles.progressContainer}>
-            <ActivityIndicator size="small" color={Colors.accent} />
-          </View>
+          <ActivityIndicator size="small" color={Colors.accent} />
         ) : downloaded ? (
-          <Check size={20} color={Colors.accent} />
+          <Check size={18} color={Colors.accent} />
         ) : (
-          <Download size={20} color={Colors.secondaryText} />
+          <Download size={18} color={Colors.secondaryText} />
         )}
       </Pressable>
     </Pressable>
@@ -426,23 +454,30 @@ const styles = StyleSheet.create({
   },
   noEpisodes: { color: Colors.secondaryText, fontSize: 14, textAlign: "center", marginTop: 32 },
   episodeRow: {
-    flexDirection: "row", alignItems: "center", paddingVertical: 12,
+    flexDirection: "row", alignItems: "flex-start", paddingVertical: 14, paddingHorizontal: 20,
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border,
+    gap: 12,
   },
-  episodeLeft: { flexDirection: "row", flex: 1, gap: 12, alignItems: 'center' },
-  playIconContainer: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: Colors.accentGlow, justifyContent: "center", alignItems: "center",
+  episodeThumb: {
+    width: 56, height: 56, borderRadius: 10, backgroundColor: Colors.surface,
+    marginTop: 2,
   },
-  playIconActive: { backgroundColor: Colors.accent },
   episodeInfo: { flex: 1 },
   episodeTitle: {
     fontSize: 15, fontWeight: "600" as const, color: Colors.primaryText,
-    marginBottom: 4, letterSpacing: -0.2,
+    marginBottom: 3, letterSpacing: -0.2, lineHeight: 20,
   },
-  episodeMeta: { flexDirection: "row" },
+  episodeDesc: {
+    fontSize: 13, color: Colors.secondaryText, lineHeight: 18,
+    marginBottom: 6, opacity: 0.8,
+  },
+  episodeMeta: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  playBadge: {
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: Colors.accentGlow, justifyContent: "center", alignItems: "center",
+  },
+  playBadgeActive: { backgroundColor: Colors.accent },
   episodeMetaText: { fontSize: 12, color: Colors.secondaryText },
-  downloadButton: { padding: 8, justifyContent: 'center', alignItems: 'center' },
-  progressContainer: { justifyContent: 'center', alignItems: 'center' },
-  progressText: { fontSize: 9, color: Colors.accent, fontWeight: '700', marginTop: 4 },
+  metaDot: { fontSize: 12, color: Colors.secondaryText, opacity: 0.5 },
+  downloadButton: { padding: 8, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
 });
