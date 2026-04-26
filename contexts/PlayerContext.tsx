@@ -62,6 +62,19 @@ export type ContinuationType = 'resume' | 'same_creator' | 'recommendation' | 'n
 const setupPlayer = async () => {
   try {
     await TrackPlayer.setupPlayer();
+  } catch (error: any) {
+    // Player might be already initialized — that's fine
+    if (
+      error?.message?.includes('already been initialized') ||
+      error?.code === 'player_already_initialized'
+    ) {
+      // Already set up, continue to updateOptions
+    } else {
+      console.warn('TrackPlayer.setupPlayer failed:', error);
+      return; // Real error — don't try updateOptions
+    }
+  }
+  try {
     await TrackPlayer.updateOptions({
       android: {
         appKilledPlaybackBehavior: AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
@@ -79,7 +92,7 @@ const setupPlayer = async () => {
       progressUpdateEventInterval: 2,
     });
   } catch (error) {
-    // Player might be already initialized
+    console.warn('TrackPlayer.updateOptions failed:', error);
   }
 };
 
