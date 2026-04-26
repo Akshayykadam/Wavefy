@@ -15,8 +15,8 @@ import { useNetwork } from "@/contexts/NetworkContext";
 import { Alert, TextInput, ScrollView } from "react-native";
 
 const { width } = Dimensions.get("window");
-const TABS = ['Following', 'Liked', 'Downloads', 'Playlists', 'History'] as const;
-type TabKey = 'following' | 'liked' | 'downloads' | 'playlists' | 'history';
+const TABS = ['Podcasts', 'In Progress', 'Downloaded', 'Playlists', 'History'] as const;
+type TabKey = 'podcasts' | 'in progress' | 'downloaded' | 'playlists' | 'history';
 
 export default function LibraryScreen() {
   const router = useRouter();
@@ -26,13 +26,13 @@ export default function LibraryScreen() {
   const { playEpisode, setQueue, resumeEpisode, getListeningHistory, removeHistoryItem, clearHistory } = usePlayer();
   const { playlists, createPlaylist, deletePlaylist } = usePlaylist();
   const { isOffline } = useNetwork();
-  const [activeTab, setActiveTab] = useState<TabKey>('following');
+  const [activeTab, setActiveTab] = useState<TabKey>('podcasts');
   const prevOfflineRef = React.useRef(isOffline);
 
   // Auto-switch to Downloads tab when going offline
   React.useEffect(() => {
     if (isOffline && !prevOfflineRef.current) {
-      switchTab('downloads');
+      switchTab('downloaded');
     }
     prevOfflineRef.current = isOffline;
   }, [isOffline]);
@@ -47,6 +47,11 @@ export default function LibraryScreen() {
     () => Object.values(downloads) as any[],
     [downloads]
   );
+  
+  const inProgressEpisodes = React.useMemo(
+    () => listeningHistory.filter((ep: any) => !ep.completed && ep.duration > 0 && (ep.position / ep.duration) < 0.95),
+    [listeningHistory]
+  );
 
   // Animated underline
   const tabWidths = useRef<number[]>([0, 0, 0, 0, 0]).current;
@@ -54,7 +59,7 @@ export default function LibraryScreen() {
   const indicatorLeft = useRef(new Animated.Value(0)).current;
   const indicatorWidth = useRef(new Animated.Value(0)).current;
 
-  const tabIndexMap: Record<TabKey, number> = { following: 0, liked: 1, downloads: 2, playlists: 3, history: 4 };
+  const tabIndexMap: Record<TabKey, number> = { podcasts: 0, 'in progress': 1, downloaded: 2, playlists: 3, history: 4 };
 
   const switchTab = useCallback((tab: TabKey) => {
     Haptics.selectionAsync();
@@ -79,7 +84,7 @@ export default function LibraryScreen() {
   const onTabLayout = useCallback((index: number, x: number, w: number) => {
     tabPositions[index] = x;
     tabWidths[index] = w;
-    if (index === 0 && activeTab === 'following') {
+    if (index === 0 && activeTab === 'podcasts') {
       indicatorLeft.setValue(x);
       indicatorWidth.setValue(w);
     }
@@ -240,7 +245,7 @@ export default function LibraryScreen() {
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <Text style={[styles.tabText, isActive && styles.activeTabText]}>{tab}</Text>
-                  {key === 'downloads' && downloadsArray.filter((d: any) => d.status === 'completed').length > 0 && (
+                  {key === 'downloaded' && downloadsArray.filter((d: any) => d.status === 'completed').length > 0 && (
                     <View style={styles.downloadBadge}>
                       <Text style={styles.downloadBadgeText}>
                         {downloadsArray.filter((d: any) => d.status === 'completed').length}
@@ -259,7 +264,7 @@ export default function LibraryScreen() {
           />
         </ScrollView>
 
-        {activeTab === 'following' ? (
+        {activeTab === 'podcasts' ? (
           <FlatList
             key="#"
             data={followedPodcasts}
@@ -273,20 +278,20 @@ export default function LibraryScreen() {
               "No podcasts followed yet"
             )}
           />
-        ) : activeTab === 'liked' ? (
+        ) : activeTab === 'in progress' ? (
           <FlatList
             key="_"
-            data={likedEpisodes}
-            renderItem={renderLikedEpisode}
-            keyExtractor={(item) => item.id}
+            data={inProgressEpisodes}
+            renderItem={renderHistoryEpisode}
+            keyExtractor={(item) => item.episodeId}
             contentContainerStyle={styles.listContent}
             removeClippedSubviews
             ListEmptyComponent={renderEmptyState(
-              <Headphones size={48} color={Colors.secondaryText} />,
-              "No liked episodes yet"
+              <Clock size={48} color={Colors.secondaryText} />,
+              "No episodes in progress"
             )}
           />
-        ) : activeTab === 'downloads' ? (
+        ) : activeTab === 'downloaded' ? (
           <FlatList
             key="@"
             data={downloadsArray}

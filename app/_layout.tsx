@@ -9,7 +9,6 @@ import { FollowedPodcastsProvider } from "@/contexts/FollowedPodcastsContext";
 import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PlaylistProvider } from "@/contexts/PlaylistContext";
-import { RecommendationProvider } from "@/contexts/RecommendationContext";
 import { NetworkProvider } from "@/contexts/NetworkContext";
 import MiniPlayer from "@/components/MiniPlayer";
 import OfflineBanner from "@/components/OfflineBanner";
@@ -116,11 +115,9 @@ export default function RootLayout() {
                 <PlayerProvider>
                   <NotificationProvider>
                     <PlaylistProvider>
-                      <RecommendationProvider>
-                        <RootLayoutNav />
-                        <MiniPlayer />
-                        <OfflineBanner />
-                      </RecommendationProvider>
+                      <RootLayoutNav />
+                      <MiniPlayer />
+                      <OfflineBanner />
                     </PlaylistProvider>
                   </NotificationProvider>
                 </PlayerProvider>

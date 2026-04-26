@@ -41,6 +41,7 @@ import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import Slider from "@react-native-community/slider";
+import { useProgress } from "react-native-track-player";
 import Colors from "@/constants/colors";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useLikedEpisodes } from "@/contexts/LikedEpisodesContext";
@@ -83,8 +84,6 @@ export default function PlayerScreen() {
     currentPodcast,
     isPlaying,
     isLoading,
-    position,
-    duration,
     playbackRate,
     togglePlayPause,
     seekTo,
@@ -111,6 +110,10 @@ export default function PlayerScreen() {
   const { isLiked, toggleLike } = useLikedEpisodes();
   const { isDownloaded, getDownloadProgress, downloadEpisode, deleteDownload } = useDownloads();
   const { playlists, addToPlaylist } = usePlaylist();
+
+  const progress = useProgress(1000);
+  const position = progress.position * 1000;
+  const duration = progress.duration * 1000;
 
   // Description LayoutAnimation logic removed as we use ShowNotesSheet now
 
@@ -443,6 +446,34 @@ export default function PlayerScreen() {
                 onPress={() => startSleepTimer(0)}
               >
                 <Text style={[styles.chipText, !sleepTimer && styles.chipTextActive]}>Off</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+
+          {/* Advanced Playback (Placeholders) */}
+          <View style={styles.menuSection}>
+            <View style={styles.menuLabelRow}>
+              <ListMusic size={18} color={Colors.secondaryText} style={{ marginRight: 8 }} />
+              <Text style={styles.menuLabel}>Smart Audio</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.chip,
+                  { opacity: pressed ? 0.7 : 1 }
+                ]}
+                onPress={() => alert('Voice Boost requires native audio engine updates. Coming soon!')}
+              >
+                <Text style={styles.chipText}>Voice Boost</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.chip,
+                  { opacity: pressed ? 0.7 : 1 }
+                ]}
+                onPress={() => alert('Trim Silence requires native audio engine updates. Coming soon!')}
+              >
+                <Text style={styles.chipText}>Trim Silence</Text>
               </Pressable>
             </ScrollView>
           </View>

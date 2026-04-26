@@ -20,7 +20,6 @@ import HeroCarousel from "@/components/HeroCarousel";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import ContinueListeningCard from "@/components/ContinueListeningCard";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { useRecommendations } from "@/contexts/RecommendationContext";
 import { useNetwork } from "@/contexts/NetworkContext";
 
 const { width } = Dimensions.get("window");
@@ -75,7 +74,6 @@ export default function HomeScreen() {
 
   const halfPlayed = getHalfPlayedEpisodes();
   const { unreadCount } = useNotifications();
-  const { recommendations, forYouQueue, isLoading: recsLoading, refreshRecommendations } = useRecommendations();
   const { isOffline } = useNetwork();
 
   const activeCategories = MOOD_CATEGORIES[activeMood];
@@ -268,131 +266,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Recommended For You */}
-          {!isOffline && recsLoading ? (
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Sparkles color={Colors.accent} size={20} />
-                <Text style={styles.sectionTitle}>Recommended For You</Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
-                {[1, 2, 3].map((key) => (
-                  <View key={`skel-rec-${key}`} style={styles.card}>
-                    <SkeletonLoader style={styles.artwork} />
-                    <SkeletonLoader style={{ width: '80%', height: 16, marginTop: 12, borderRadius: 4 }} />
-                    <SkeletonLoader style={{ width: '60%', height: 12, marginTop: 8, borderRadius: 4 }} />
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          ) : recommendations.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Sparkles color={Colors.accent} size={20} />
-                <Text style={styles.sectionTitle}>Recommended For You</Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.horizontalScroll}
-                snapToInterval={CARD_WIDTH + 12}
-                decelerationRate="fast"
-              >
-                {recommendations.map((rec) => (
-                  <Pressable
-                    key={rec.podcast.collectionId}
-                    style={({ pressed }) => [
-                      styles.card,
-                      pressed && styles.cardPressed,
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push(`/podcast/${rec.podcast.collectionId}` as any);
-                    }}
-                  >
-                    <Image
-                      source={{ uri: rec.podcast.artworkUrl600 }}
-                      style={styles.artwork}
-                      contentFit="cover"
-                    />
-                    <Text style={styles.podcastName} numberOfLines={2}>
-                      {rec.podcast.collectionName}
-                    </Text>
-                    <View style={styles.recReasonTag}>
-                      <Text style={styles.recReason} numberOfLines={1}>
-                        {rec.reason}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Your Daily Mix */}
-          {!isOffline && recsLoading ? (
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Zap color={Colors.accent} size={20} />
-                <Text style={[styles.sectionTitle, { flex: 1 }]}>Your Daily Mix</Text>
-              </View>
-              {[1, 2, 3].map((key) => (
-                <View key={`skel-mix-${key}`} style={[styles.mixItem, { backgroundColor: 'transparent', padding: 0, borderWidth: 0, marginHorizontal: 20 }]}>
-                  <SkeletonLoader style={{ width: '100%', height: 72, borderRadius: 14 }} />
-                </View>
-              ))}
-            </View>
-          ) : forYouQueue.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Zap color={Colors.accent} size={20} />
-                <Text style={[styles.sectionTitle, { flex: 1 }]}>Your Daily Mix</Text>
-                <Pressable
-                  style={({ pressed }) => [styles.playAllBtn, pressed && { opacity: 0.7 }]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    const episodes = forYouQueue.map(item => item.episode);
-                    if (episodes.length > 0) {
-                      const firstItem = forYouQueue[0];
-                      playEpisode(firstItem.episode, firstItem.podcast);
-                      if (episodes.length > 1) {
-                        setQueue(episodes.slice(1));
-                      }
-                    }
-                  }}
-                >
-                  <Play size={14} color={Colors.black} fill={Colors.black} />
-                  <Text style={styles.playAllText}>Play All</Text>
-                </Pressable>
-              </View>
-              {forYouQueue.slice(0, 3).map((item, index) => (
-                <Pressable
-                  key={`mix-${item.episode.id}-${index}`}
-                  style={({ pressed }) => [styles.mixItem, pressed && { backgroundColor: Colors.surfaceLight }]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    playEpisode(item.episode, item.podcast);
-                  }}
-                >
-                  <Image
-                    source={{ uri: item.episode.artwork || item.podcast.artworkUrl600 }}
-                    style={styles.mixArtwork}
-                    contentFit="cover"
-                  />
-                  <View style={styles.mixInfo}>
-                    <Text style={styles.mixTitle} numberOfLines={1}>{item.episode.title}</Text>
-                    <Text style={styles.mixSubtitle} numberOfLines={1}>{item.podcast.collectionName}</Text>
-                  </View>
-                  <View style={styles.mixPlayBtn}>
-                    <Play size={16} color={Colors.accent} fill={Colors.accent} />
-                  </View>
-                </Pressable>
-              ))}
-              {forYouQueue.length > 3 && (
-                <Text style={styles.mixMore}>+{forYouQueue.length - 3} more episodes</Text>
-              )}
-            </View>
-          )}
+          {/* Recommendation and Daily Mix sections removed */}
 
           {/* Featured — only when online */}
           {!isOffline && (

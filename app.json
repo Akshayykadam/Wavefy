@@ -12,7 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.akshaykadam.wavefy",
@@ -55,6 +55,15 @@
           "icon": "./assets/images/icon.png",
           "color": "#FF3B30",
           "defaultChannel": "new-episodes"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
         }
       ]
     ],

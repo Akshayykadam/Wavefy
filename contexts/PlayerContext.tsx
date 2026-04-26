@@ -3,7 +3,6 @@ import TrackPlayer, {
   Capability,
   State,
   usePlaybackState,
-  useProgress,
   AppKilledPlaybackBehavior,
   PitchAlgorithm,
   useTrackPlayerEvents,
@@ -12,7 +11,7 @@ import TrackPlayer, {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Episode, Podcast } from '@/types/podcast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, Platform } from 'react-native';
+import { Alert, Platform, AppState, AppStateStatus } from 'react-native';
 import { parseRSS } from '@/utils/rss';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useNetwork } from '@/contexts/NetworkContext';
@@ -125,15 +124,12 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   });
 
-  // Sync state once on mount + low-frequency fallback (5s) for edge cases only.
-  // The TrackPlayerEvent.PlaybackState listener above handles real-time updates.
+  // Sync state once on mount. Real-time updates handled by TrackPlayerEvent.PlaybackState listener.
   useEffect(() => {
     updateState();
-    const interval = setInterval(updateState, 5000);
-    return () => clearInterval(interval);
   }, [updateState]);
 
-  const progress = useProgress(1000); // Throttle to 1-second intervals — prevents 4x/sec re-renders across entire app
+
 
   const [playbackRate, setPlaybackRate] = useState(1.0);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -370,29 +366,33 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     if (isPlayerReady) TrackPlayer.setRate(playbackRate);
   }, [playbackRate, isPlayerReady]);
 
-  // Debounce refs for position saves — avoid hammering AsyncStorage on every tick
-  const lastPositionSaveRef = useRef(0);
-  const lastProgressUpdateRef = useRef(0);
-
-  // Track progress and update episode progress data (throttled)
+  // Save to AsyncStorage only when AppState changes to background/inactive, or when paused
   useEffect(() => {
-    if (progress.position > 0 && isPlaying && currentEpisode && currentPodcast) {
-      const now = Date.now();
-
-      // Save position to AsyncStorage at most once every 3 seconds
-      if (now - lastPositionSaveRef.current > 3000) {
-        lastPositionSaveRef.current = now;
-        AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(progress.position)).catch(() => {});
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      if (nextAppState.match(/inactive|background/) && currentEpisode && currentPodcast) {
+        const { position, duration } = await TrackPlayer.getProgress();
+        if (position > 0) {
+          AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(position)).catch(() => {});
+          updateEpisodeProgress(currentEpisode, currentPodcast, position, duration);
+        }
       }
+    };
 
-      // Update episode progress map at most once every 10 seconds
-      if (now - lastProgressUpdateRef.current > 10000) {
-        lastProgressUpdateRef.current = now;
-        updateEpisodeProgress(currentEpisode, currentPodcast, progress.position, progress.duration);
-      }
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [currentEpisode, currentPodcast, updateEpisodeProgress]);
+
+  // Save position when playback pauses or stops
+  useEffect(() => {
+    if (!isPlaying && currentEpisode && currentPodcast) {
+      TrackPlayer.getProgress().then(({ position, duration }) => {
+        if (position > 0) {
+          AsyncStorage.setItem(STORAGE_KEYS.POSITION, String(position)).catch(() => {});
+          updateEpisodeProgress(currentEpisode, currentPodcast, position, duration);
+        }
+      });
     }
-  }, [progress.position, isPlaying, currentEpisode, currentPodcast, updateEpisodeProgress, progress.duration]);
-
+  }, [isPlaying, currentEpisode, currentPodcast, updateEpisodeProgress]);
 
   const playEpisode = useCallback(async (episode: Episode, podcast: Podcast, seekPosition?: number) => {
     if (!isPlayerReady) return;
@@ -714,13 +714,14 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
 
     // Mark current episode as completed
-    if (currentEpisode && currentPodcast && progress.duration > 0) {
+    const { duration } = await TrackPlayer.getProgress();
+    if (currentEpisode && currentPodcast && duration > 0) {
       setEpisodeProgressMap(prev => {
         const updated: EpisodeProgressData = {
           episodeId: currentEpisode.id,
           podcastId: currentPodcast.collectionId,
-          position: progress.duration,
-          duration: progress.duration,
+          position: duration,
+          duration: duration,
           lastPlayedAt: new Date().toISOString(),
           completed: true,
           podcastTitle: currentPodcast.collectionName,
@@ -795,7 +796,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   }, [
     currentEpisode,
     currentPodcast,
-    progress.duration,
     queue,
     findNextEpisode,
     playEpisode,
@@ -882,17 +882,11 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
 
 
-  // Provide consistent state interface
-  const position = progress.position * 1000;
-  const duration = progress.duration * 1000;
-
   return {
     currentEpisode,
     currentPodcast,
     isPlaying,
     isLoading,
-    position,
-    duration,
     queue,
     playbackRate,
     playEpisode,

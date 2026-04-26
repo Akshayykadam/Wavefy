@@ -3,11 +3,14 @@ import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const BACKGROUND_TASK_NAME = 'WAVEFY_CHECK_NEW_EPISODES';
 const FOLLOWED_STORAGE_KEY = '@followed_podcasts';
 const NOTIFICATIONS_STORAGE_KEY = 'wavefy_notifications';
 const LAST_SEEN_KEY = 'wavefy_last_seen_episodes';
+const DOWNLOADS_STORAGE_KEY = 'podcat_downloads_metadata';
+const DOWNLOAD_DIR = FileSystem.documentDirectory + 'downloads/';
 
 export interface NotificationItem {
   id: string;
@@ -98,6 +101,65 @@ export async function checkForNewEpisodes(): Promise<NotificationItem[]> {
           },
           trigger: null, // immediately
         });
+
+        // Trigger Auto-Download for the new episode
+        try {
+          const enclosureMatch = item.match(/<enclosure[^>]*url=["']([^"']+)["'][^>]*>/i);
+          const audioUrl = enclosureMatch ? enclosureMatch[1] : null;
+
+          if (audioUrl) {
+            const dirInfo = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
+            if (!dirInfo.exists) {
+              await FileSystem.makeDirectoryAsync(DOWNLOAD_DIR, { intermediates: true });
+            }
+
+            const descriptionMatch = item.match(/<description[^>]*>([\s\S]*?)<\/description>/i) || item.match(/<itunes:summary[^>]*>([\s\S]*?)<\/itunes:summary>/i);
+            const description = descriptionMatch ? descriptionMatch[1].replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').trim() : '';
+
+            const durationMatch = item.match(/<itunes:duration[^>]*>([\s\S]*?)<\/itunes:duration>/i);
+            let duration = 0;
+            if (durationMatch) {
+              const parts = durationMatch[1].split(':').reverse();
+              duration = parts.reduce((acc, val, idx) => acc + parseInt(val || '0', 10) * Math.pow(60, idx), 0);
+            }
+
+            const filename = `${episodeId.replace(/[^a-z0-9]/gi, '_')}.mp3`;
+            const localUri = DOWNLOAD_DIR + filename;
+            
+            const newDownloadEntry = {
+              id: episodeId,
+              title: episodeTitle,
+              description,
+              podcastTitle: podcast.collectionName,
+              podcastArtwork: podcast.artworkUrl600 || podcast.artworkUrl100 || '',
+              artwork: podcast.artworkUrl600 || podcast.artworkUrl100 || '',
+              audioUrl,
+              duration,
+              pubDate: pubDateMatch ? pubDateMatch[1].trim() : new Date().toISOString(),
+              localUri,
+              downloadDate: new Date().toISOString(),
+              status: 'downloading',
+              progress: 0,
+              podcastName: podcast.collectionName,
+            };
+
+            const storedDownloadsRaw = await AsyncStorage.getItem(DOWNLOADS_STORAGE_KEY);
+            const storedDownloads = storedDownloadsRaw ? JSON.parse(storedDownloadsRaw) : {};
+            storedDownloads[episodeId] = newDownloadEntry;
+            await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(storedDownloads));
+
+            // Perform actual background download
+            const { uri } = await FileSystem.downloadAsync(audioUrl, localUri);
+            
+            // Mark complete
+            storedDownloads[episodeId].status = 'completed';
+            storedDownloads[episodeId].progress = 100;
+            storedDownloads[episodeId].localUri = uri;
+            await AsyncStorage.setItem(DOWNLOADS_STORAGE_KEY, JSON.stringify(storedDownloads));
+          }
+        } catch (e) {
+          console.error('[BackgroundNotifications] Auto-download failed:', e);
+        }
 
         return notifItem;
       } catch (e) {

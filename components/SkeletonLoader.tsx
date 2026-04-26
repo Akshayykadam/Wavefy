@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, ViewStyle } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, ViewStyle, AppState, AppStateStatus, Easing } from 'react-native';
 import Colors from '@/constants/colors';
 
 interface SkeletonProps {
@@ -8,27 +8,59 @@ interface SkeletonProps {
 
 export default function SkeletonLoader({ style }: SkeletonProps) {
   const animatedValue = useRef(new Animated.Value(0)).current;
+  const animationRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const startAnimation = () => {
+    if (!animationRef.current) {
+      animationRef.current = Animated.loop(
+        Animated.sequence([
+          Animated.timing(animatedValue, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(animatedValue, {
+            toValue: 0,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ])
+      );
+    }
+    animationRef.current.start();
+  };
+
+  const stopAnimation = () => {
+    if (animationRef.current) {
+      animationRef.current.stop();
+    }
+  };
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(animatedValue, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(animatedValue, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [animatedValue]);
+    // Start initially
+    startAnimation();
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active') {
+        startAnimation();
+      } else if (nextAppState.match(/inactive|background/)) {
+        stopAnimation();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+      stopAnimation();
+    };
+  }, []);
 
   const opacity = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.15, 0.4],
+    outputRange: [0.1, 0.35],
   });
 
   return (

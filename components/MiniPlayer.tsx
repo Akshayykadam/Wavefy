@@ -14,6 +14,7 @@ import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
+import { useProgress } from "react-native-track-player";
 import Colors from "@/constants/colors";
 import { usePlayer } from "@/contexts/PlayerContext";
 
@@ -27,10 +28,12 @@ export default function MiniPlayer() {
     isPlaying,
     togglePlayPause,
     isLoading,
-    position,
-    duration,
     skipForward,
   } = usePlayer();
+
+  const progress = useProgress(1000);
+  const position = progress.position * 1000;
+  const duration = progress.duration * 1000;
 
   const animatedWidth = React.useRef(new Animated.Value(0)).current;
   const lastAnimatedPerc = React.useRef(-1);
@@ -164,14 +167,14 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     position: 'absolute',
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
-    height: 2.5,
+    height: 3,
     backgroundColor: Colors.progressBg,
     zIndex: 10,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     overflow: 'hidden',
   },
   progressBar: {
