@@ -118,10 +118,11 @@ export default function PlayerScreen() {
   // Description LayoutAnimation logic removed as we use ShowNotesSheet now
 
   const handleBack = () => {
-    if (router.canGoBack()) {
+    if (router.canDismiss()) {
+      router.dismiss();
+    } else if (router.canGoBack()) {
       router.back();
     } else {
-      // Fallback to home/library if no history (e.g. after deep link or reload)
       router.replace("/(tabs)");
     }
   };
