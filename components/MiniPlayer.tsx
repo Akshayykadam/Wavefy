@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   Animated,
+  Dimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { BlurView } from "expo-blur";
@@ -35,6 +36,9 @@ export default function MiniPlayer() {
   const position = progress.position * 1000;
   const duration = progress.duration * 1000;
 
+  const { width: SCREEN_WIDTH } = Dimensions.get('window');
+  const MINI_PLAYER_WIDTH = SCREEN_WIDTH - 24;
+
   const animatedWidth = React.useRef(new Animated.Value(0)).current;
   const lastAnimatedPerc = React.useRef(-1);
 
@@ -46,7 +50,7 @@ export default function MiniPlayer() {
     Animated.timing(animatedWidth, {
       toValue: progressPerc,
       duration: 1000,
-      useNativeDriver: false,
+      useNativeDriver: true,
     }).start();
   }, [position, duration]);
 
@@ -88,10 +92,15 @@ export default function MiniPlayer() {
       <View style={[StyleSheet.absoluteFill, { backgroundColor: Platform.OS === 'ios' ? 'rgba(10,10,10,0.78)' : Colors.surface }]} />
       
       <View style={styles.progressBarContainer}>
-        <Animated.View style={[styles.progressBar, { width: animatedWidth.interpolate({
-          inputRange: [0, 100],
-          outputRange: ['0%', '100%']
-        }) }]} />
+        <Animated.View style={[styles.progressBar, { 
+          width: '100%',
+          transform: [{
+            translateX: animatedWidth.interpolate({
+              inputRange: [0, 100],
+              outputRange: [-MINI_PLAYER_WIDTH, 0],
+            })
+          }]
+        }]} />
       </View>
 
       <View style={styles.content}>

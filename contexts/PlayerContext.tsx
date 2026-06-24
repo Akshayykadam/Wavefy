@@ -168,10 +168,14 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       await setupPlayer();
       isPlayerReadyRef.current = true;
       setIsPlayerReady(true);
-      loadState();
-      loadEpisodeProgress();
-      loadContinuationSettings();
-      loadQueue();
+      // Run all AsyncStorage reads in parallel to avoid blocking the main thread
+      // sequentially (which caused SQLite ANRs on startup).
+      await Promise.all([
+        loadState(),
+        loadEpisodeProgress(),
+        loadContinuationSettings(),
+        loadQueue(),
+      ]);
     };
     init();
   }, []);
@@ -218,10 +222,22 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   };
 
-  // Save Episode Progress
+  // Max entries to keep in listening history to prevent unbounded SQLite growth
+  const MAX_HISTORY_SIZE = 100;
+
+  // Save Episode Progress (caps at MAX_HISTORY_SIZE to avoid large SQLite writes)
   const saveEpisodeProgress = async (newMap: { [id: string]: EpisodeProgressData }) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.EPISODE_PROGRESS, JSON.stringify(newMap));
+      let mapToSave = newMap;
+      const entries = Object.values(newMap);
+      if (entries.length > MAX_HISTORY_SIZE) {
+        // Keep the most recently played entries
+        const trimmed = entries
+          .sort((a, b) => new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime())
+          .slice(0, MAX_HISTORY_SIZE);
+        mapToSave = Object.fromEntries(trimmed.map(e => [e.episodeId, e]));
+      }
+      await AsyncStorage.setItem(STORAGE_KEYS.EPISODE_PROGRESS, JSON.stringify(mapToSave));
     } catch (error) {
       console.error('Failed to save episode progress:', error);
     }

@@ -5,3 +5,10 @@
 expo-env.d.ts
 # @end expo-cli
 node_modules
+.expo/cache/eslint/.cache_62iht4
+screenshot.png
+categories_redesign.png
+.expo/devices.json
+release-apks/wavefy-v2.0.1-arm64.apk
+release-apks/wavefy-v2.0.1-armeabi-v7a.apk
+release-apks/wavefy-v2.0.1-universal.apk

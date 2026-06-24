@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { Bell, Play, ChevronRight, ListMusic, Sparkles, Zap } from "lucide-react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -63,6 +63,18 @@ const getGreeting = () => {
 export default function HomeScreen() {
   const router = useRouter();
   const [activeMood, setActiveMood] = useState(MOODS[0]);
+  // Delay queries on startup to let the player init + system settle,
+  // preventing simultaneous SQLite + network ops that cause System UI ANR.
+  const [queriesReady, setQueriesReady] = useState(false);
+  const [cat2Ready, setCat2Ready] = useState(false);
+  const [cat3Ready, setCat3Ready] = useState(false);
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setQueriesReady(true), 1500);   // featured + cat1 after 1.5s
+    const t2 = setTimeout(() => setCat2Ready(true), 1800);      // cat2 staggered
+    const t3 = setTimeout(() => setCat3Ready(true), 2100);      // cat3 staggered
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
 
   const {
     getHalfPlayedEpisodes,
@@ -81,25 +93,25 @@ export default function HomeScreen() {
   const { data: featured = [], isLoading: featuredLoading } = useQuery({
     queryKey: ["featured", activeMood],
     queryFn: () => fetchFeaturedPodcasts(activeMood),
-    enabled: !isOffline,
+    enabled: !isOffline && queriesReady,
   });
 
   const { data: cat1 = [], isLoading: cat1Loading } = useQuery({
     queryKey: ["category", activeCategories[0]],
     queryFn: () => fetchPodcastsByCategory(activeCategories[0]),
-    enabled: !isOffline,
+    enabled: !isOffline && queriesReady,
   });
 
   const { data: cat2 = [], isLoading: cat2Loading } = useQuery({
     queryKey: ["category", activeCategories[1]],
     queryFn: () => fetchPodcastsByCategory(activeCategories[1]),
-    enabled: !isOffline,
+    enabled: !isOffline && cat2Ready,
   });
 
   const { data: cat3 = [], isLoading: cat3Loading } = useQuery({
     queryKey: ["category", activeCategories[2]],
     queryFn: () => fetchPodcastsByCategory(activeCategories[2]),
-    enabled: !isOffline,
+    enabled: !isOffline && cat3Ready,
   });
 
   const renderPodcastCard = (podcast: Podcast) => (

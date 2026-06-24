@@ -114,6 +114,9 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
         const guid = guidMatch ? guidMatch[1].replace(/<[^>]*>/g, "").trim() : "";
         const duration = parseDuration(durationText);
         
+        const imageMatch = item.match(/<itunes:image[^>]*href=["']([^"']*)["']/i);
+        const artwork = imageMatch ? imageMatch[1].trim() : "";
+
         let chapters = parsePscChapters(item);
         if (chapters.length === 0) {
             chapters = extractChaptersFromDescription(description);
@@ -127,7 +130,7 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
             audioUrl, 
             pubDate, 
             duration, 
-            artwork: "",
+            artwork,
             chapters: chapters.length > 0 ? chapters : undefined
         });
     }

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { View, Text, StyleSheet, FlatList, Pressable, Animated, Dimensions } from "react-native";
+import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Play, Trash2, Heart, Download, Headphones, Music2, Plus } from "lucide-react-native";
+import { Play, Trash2, Heart, Download, Headphones, Music2, Plus, Clock } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useFollowedPodcasts } from "@/contexts/FollowedPodcastsContext";
@@ -13,10 +14,13 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { usePlaylist } from "@/contexts/PlaylistContext";
 import { useNetwork } from "@/contexts/NetworkContext";
 import { Alert, TextInput, ScrollView } from "react-native";
+import { useQuery } from "@tanstack/react-query";
+import { parseRSS } from "@/utils/rss";
+import { Episode, Podcast } from "@/types/podcast";
 
 const { width } = Dimensions.get("window");
-const TABS = ['Podcasts', 'In Progress', 'Downloaded', 'Playlists', 'History'] as const;
-type TabKey = 'podcasts' | 'in progress' | 'downloaded' | 'playlists' | 'history';
+const TABS = ['Podcasts', 'New Episodes', 'In Progress', 'Downloaded', 'Playlists', 'History'] as const;
+type TabKey = 'podcasts' | 'new episodes' | 'in progress' | 'downloaded' | 'playlists' | 'history';
 
 export default function LibraryScreen() {
   const router = useRouter();
@@ -53,13 +57,57 @@ export default function LibraryScreen() {
     [listeningHistory]
   );
 
+  // Subscription Feed logic
+  const { data: newEpisodes = [], isLoading: newEpisodesLoading, refetch: refetchNewEpisodes } = useQuery({
+    queryKey: ['subscription_feed', followedPodcasts.map(p => p.feedUrl)],
+    queryFn: async () => {
+      if (followedPodcasts.length === 0) return [];
+      
+      const results = await Promise.allSettled(
+        followedPodcasts.map(async (podcast) => {
+          try {
+            const episodes = await parseRSS(podcast.feedUrl);
+            return episodes.map(ep => ({
+              ...ep,
+              podcastTitle: podcast.collectionName,
+              podcastArtwork: podcast.artworkUrl600,
+              artwork: ep.artwork || podcast.artworkUrl600,
+              podcastId: podcast.collectionId,
+              artistName: podcast.artistName,
+              podcast,
+            }));
+          } catch (e) {
+            console.warn(`Failed to parse RSS for ${podcast.collectionName}:`, e);
+            return [];
+          }
+        })
+      );
+      
+      const allEpisodes = results
+        .filter((r): r is PromiseFulfilledResult<any[]> => r.status === 'fulfilled')
+        .flatMap(r => r.value);
+        
+      allEpisodes.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+      
+      return allEpisodes.slice(0, 50);
+    },
+    enabled: activeTab === 'new episodes' && !isOffline && followedPodcasts.length > 0,
+  });
+
   // Animated underline
-  const tabWidths = useRef<number[]>([0, 0, 0, 0, 0]).current;
-  const tabPositions = useRef<number[]>([0, 0, 0, 0, 0]).current;
+  const tabWidths = useRef<number[]>(new Array(TABS.length).fill(0)).current;
+  const tabPositions = useRef<number[]>(new Array(TABS.length).fill(0)).current;
   const indicatorLeft = useRef(new Animated.Value(0)).current;
   const indicatorWidth = useRef(new Animated.Value(0)).current;
 
-  const tabIndexMap: Record<TabKey, number> = { podcasts: 0, 'in progress': 1, downloaded: 2, playlists: 3, history: 4 };
+  const tabIndexMap: Record<TabKey, number> = { 
+    podcasts: 0, 
+    'new episodes': 1, 
+    'in progress': 2, 
+    downloaded: 3, 
+    playlists: 4, 
+    history: 5 
+  };
 
   const switchTab = useCallback((tab: TabKey) => {
     Haptics.selectionAsync();
@@ -134,6 +182,36 @@ export default function LibraryScreen() {
     });
   };
 
+  const startNewEpisodePlayback = useCallback((episode: any, index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const nextEpisodes = newEpisodes.slice(index + 1);
+    setQueue(nextEpisodes);
+    playEpisode(episode, {
+      collectionId: episode.podcastId || episode.collectionId || -1,
+      collectionName: episode.podcastTitle || 'Unknown Podcast',
+      artistName: episode.artistName || 'Unknown Artist',
+      artworkUrl600: episode.artwork || '',
+      artworkUrl100: episode.artwork || '',
+      feedUrl: episode.podcast?.feedUrl || '', trackCount: 0, releaseDate: '', primaryGenreName: '', collectionViewUrl: '',
+    });
+  }, [newEpisodes, playEpisode, setQueue]);
+
+  const renderNewEpisode = useCallback(({ item, index }: { item: any, index: number }) => (
+    <Pressable
+      style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
+      onPress={() => startNewEpisodePlayback(item, index)}
+    >
+      <Image source={{ uri: item.artwork || item.podcastArtwork }} style={styles.episodeArtwork} contentFit="cover" />
+      <View style={styles.episodeInfo}>
+        <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.episodeSubtitle}>{item.podcastTitle || 'Unknown Podcast'}</Text>
+      </View>
+      <View style={styles.playBtn}>
+        <Play size={18} color={Colors.accent} fill={Colors.accent} />
+      </View>
+    </Pressable>
+  ), [startNewEpisodePlayback]);
+
   const renderLikedEpisode = useCallback(({ item, index }: { item: any, index: number }) => (
     <Pressable
       style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
@@ -150,29 +228,47 @@ export default function LibraryScreen() {
     </Pressable>
   ), [startLikedPlayback]);
 
-  const renderDownloadedEpisode = useCallback(({ item }: { item: any }) => (
+  const renderDownloadedRightActions = (id: string) => (
     <Pressable
-      style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
-      onPress={() => startDownloadPlayback(item)}
+      style={styles.swipeDeleteBtn}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        deleteDownload(id);
+      }}
     >
-      <Image source={{ uri: item.podcastArtwork || item.artwork }} style={styles.episodeArtwork} contentFit="cover" />
-      <View style={styles.episodeInfo}>
-        <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.episodeSubtitle}>
-          {item.status === 'downloading' ? `Downloading...` : (item.podcastName || 'Downloaded')}
-        </Text>
-      </View>
-      <Pressable
-        style={styles.deleteBtn}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          deleteDownload(item.id);
-        }}
-        hitSlop={10}
-      >
-        <Trash2 size={18} color={Colors.secondaryText} />
-      </Pressable>
+      <Trash2 size={20} color="#fff" />
     </Pressable>
+  );
+
+  const renderDownloadedEpisode = useCallback(({ item }: { item: any }) => (
+    <Swipeable
+      renderRightActions={() => renderDownloadedRightActions(item.id)}
+      friction={2}
+      rightThreshold={40}
+    >
+      <Pressable
+        style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
+        onPress={() => startDownloadPlayback(item)}
+      >
+        <Image source={{ uri: item.podcastArtwork || item.artwork }} style={styles.episodeArtwork} contentFit="cover" />
+        <View style={styles.episodeInfo}>
+          <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
+          <Text style={styles.episodeSubtitle}>
+            {item.status === 'downloading' ? `Downloading...` : (item.podcastName || 'Downloaded')}
+          </Text>
+        </View>
+        <Pressable
+          style={styles.deleteBtn}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            deleteDownload(item.id);
+          }}
+          hitSlop={10}
+        >
+          <Trash2 size={18} color={Colors.secondaryText} />
+        </Pressable>
+      </Pressable>
+    </Swipeable>
   ), [startDownloadPlayback, deleteDownload]);
 
   const renderHistoryEpisode = useCallback(({ item }: { item: any }) => (
@@ -252,6 +348,13 @@ export default function LibraryScreen() {
                       </Text>
                     </View>
                   )}
+                  {key === 'new episodes' && newEpisodes.length > 0 && (
+                    <View style={[styles.downloadBadge, { backgroundColor: Colors.accent }]}>
+                      <Text style={[styles.downloadBadgeText, { color: '#000' }]}>
+                        {newEpisodes.length}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </Pressable>
             );
@@ -276,6 +379,22 @@ export default function LibraryScreen() {
             ListEmptyComponent={renderEmptyState(
               <Heart size={48} color={Colors.secondaryText} />,
               "No podcasts followed yet"
+            )}
+          />
+        ) : activeTab === 'new episodes' ? (
+          <FlatList
+            key="n"
+            data={newEpisodes}
+            renderItem={renderNewEpisode}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            contentContainerStyle={styles.listContent}
+            refreshing={newEpisodesLoading}
+            onRefresh={refetchNewEpisodes}
+            ListEmptyComponent={renderEmptyState(
+              <Headphones size={48} color={Colors.secondaryText} />,
+              followedPodcasts.length === 0 
+                ? "Follow podcasts to see new episodes" 
+                : "No new episodes found"
             )}
           />
         ) : activeTab === 'in progress' ? (
@@ -537,6 +656,15 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: 8,
+  },
+  swipeDeleteBtn: {
+    backgroundColor: '#ff4d4d',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 70,
+    height: '100%',
+    borderRadius: 14,
+    marginBottom: 10,
   },
   completedBadge: {
     paddingHorizontal: 8,

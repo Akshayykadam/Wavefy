@@ -77,6 +77,57 @@ const formatDuration = (seconds: number): string => {
   return `${mins}m`;
 };
 
+interface PlayerProgressSectionProps {
+  currentEpisode: Episode;
+  seekTo: (position: number) => void;
+}
+
+function PlayerProgressSection({ currentEpisode, seekTo }: PlayerProgressSectionProps) {
+  const progress = useProgress(500);
+  const position = progress.position * 1000;
+  const duration = progress.duration * 1000;
+
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekPosition, setSeekPosition] = useState(0);
+
+  const currentPosition = isSeeking ? seekPosition : position;
+
+  return (
+    <>
+      <View style={styles.progressContainer}>
+        <WaveformSeekBar
+          progress={duration > 0 ? currentPosition / duration : 0}
+          duration={duration}
+          onSeek={(pos) => {
+            seekTo(pos);
+            setIsSeeking(false);
+          }}
+          onSeekStart={() => {
+            setIsSeeking(true);
+            setSeekPosition(currentPosition);
+          }}
+          onSeekEnd={() => {
+            setIsSeeking(false);
+          }}
+          height={50}
+        />
+        <View style={styles.timeContainer}>
+          <Text style={styles.timeText}>{formatTime(currentPosition)}</Text>
+          <Text style={styles.timeText}>{formatTime(duration)}</Text>
+        </View>
+      </View>
+
+      {currentEpisode.chapters && currentEpisode.chapters.length > 0 && (
+        <ChapterList
+          chapters={currentEpisode.chapters}
+          currentPosition={currentPosition}
+          onSeek={seekTo}
+        />
+      )}
+    </>
+  );
+}
+
 export default function PlayerScreen() {
   const router = useRouter();
   const {
@@ -102,18 +153,12 @@ export default function PlayerScreen() {
     podcastEpisodes,
   } = usePlayer();
 
-  const [isSeeking, setIsSeeking] = useState(false);
-  const [seekPosition, setSeekPosition] = useState(0);
   const [menuVisible, setMenuVisible] = useState(false);
   const [showNotesVisible, setShowNotesVisible] = useState(false);
   const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
   const { isLiked, toggleLike } = useLikedEpisodes();
   const { isDownloaded, getDownloadProgress, downloadEpisode, deleteDownload } = useDownloads();
   const { playlists, addToPlaylist } = usePlaylist();
-
-  const progress = useProgress(1000);
-  const position = progress.position * 1000;
-  const duration = progress.duration * 1000;
 
   // Description LayoutAnimation logic removed as we use ShowNotesSheet now
 
@@ -168,7 +213,7 @@ export default function PlayerScreen() {
     );
   }
 
-  const currentPosition = isSeeking ? seekPosition : position;
+
 
 
 
@@ -262,18 +307,10 @@ export default function PlayerScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.progressContainer}>
-            <WaveformSeekBar
-              progress={duration > 0 ? currentPosition / duration : 0}
-              duration={duration}
-              onSeek={(pos) => seekTo(pos)}
-              height={50}
-            />
-            <View style={styles.timeContainer}>
-              <Text style={styles.timeText}>{formatTime(currentPosition)}</Text>
-              <Text style={styles.timeText}>{formatTime(duration)}</Text>
-            </View>
-          </View>
+          <PlayerProgressSection
+            currentEpisode={currentEpisode}
+            seekTo={seekTo}
+          />
 
           <View style={styles.controls}>
             <Pressable style={styles.skipButton} onPress={() => {
@@ -347,13 +384,7 @@ export default function PlayerScreen() {
             </Pressable>
           )}
 
-          {currentEpisode.chapters && currentEpisode.chapters.length > 0 && (
-            <ChapterList
-              chapters={currentEpisode.chapters}
-              currentPosition={currentPosition}
-              onSeek={seekTo}
-            />
-          )}
+
 
           {(currentEpisode.description || currentEpisode.descriptionHtml) ? (
             <Pressable style={[styles.description, { marginTop: 16 }]} onPress={() => setShowNotesVisible(true)}>

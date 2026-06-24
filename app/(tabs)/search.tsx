@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Search as SearchIcon, X, Cpu, Crosshair, Laugh, Newspaper, Briefcase, Trophy, HeartPulse, FlaskConical, WifiOff } from "lucide-react-native";
+import { Search as SearchIcon, X, Cpu, Crosshair, Laugh, Newspaper, Briefcase, Trophy, HeartPulse, FlaskConical, WifiOff, ChevronRight } from "lucide-react-native";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -28,14 +28,62 @@ const GRID_PADDING = 20;
 const TILE_WIDTH = (width - GRID_PADDING * 2 - GRID_GAP) / 2;
 
 const GENRE_TILES = [
-  { name: "Technology", colors: ["#1DB954", "#0d6b30"] as const, Icon: Cpu },
-  { name: "True Crime", colors: ["#E13300", "#7a1c00"] as const, Icon: Crosshair },
-  { name: "Comedy", colors: ["#FF6B6B", "#a33030"] as const, Icon: Laugh },
-  { name: "News", colors: ["#3b82f6", "#1e40af"] as const, Icon: Newspaper },
-  { name: "Business", colors: ["#8B5CF6", "#5721b5"] as const, Icon: Briefcase },
-  { name: "Sports", colors: ["#F59E0B", "#b45309"] as const, Icon: Trophy },
-  { name: "Health", colors: ["#06B6D4", "#0e7490"] as const, Icon: HeartPulse },
-  { name: "Science", colors: ["#EC4899", "#9d174d"] as const, Icon: FlaskConical },
+  {
+    name: "Technology",
+    colors: ["#121214", "#0a2e1b"] as const,
+    accentColor: "#1db954",
+    iconBg: "rgba(29, 185, 84, 0.12)",
+    Icon: Cpu,
+  },
+  {
+    name: "True Crime",
+    colors: ["#121214", "#3b0c0c"] as const,
+    accentColor: "#ff4d4d",
+    iconBg: "rgba(255, 77, 77, 0.12)",
+    Icon: Crosshair,
+  },
+  {
+    name: "Comedy",
+    colors: ["#121214", "#4a1228"] as const,
+    accentColor: "#ff4d82",
+    iconBg: "rgba(255, 77, 130, 0.12)",
+    Icon: Laugh,
+  },
+  {
+    name: "News",
+    colors: ["#121214", "#0c2540"] as const,
+    accentColor: "#3b82f6",
+    iconBg: "rgba(59, 130, 246, 0.12)",
+    Icon: Newspaper,
+  },
+  {
+    name: "Business",
+    colors: ["#121214", "#230f40"] as const,
+    accentColor: "#a855f7",
+    iconBg: "rgba(168, 85, 247, 0.12)",
+    Icon: Briefcase,
+  },
+  {
+    name: "Sports",
+    colors: ["#121214", "#3b2a0c"] as const,
+    accentColor: "#f59e0b",
+    iconBg: "rgba(245, 158, 11, 0.12)",
+    Icon: Trophy,
+  },
+  {
+    name: "Health",
+    colors: ["#121214", "#0c3b3b"] as const,
+    accentColor: "#06b6d4",
+    iconBg: "rgba(6, 182, 212, 0.12)",
+    Icon: HeartPulse,
+  },
+  {
+    name: "Science",
+    colors: ["#121214", "#3b0c2e"] as const,
+    accentColor: "#ec4899",
+    iconBg: "rgba(236, 72, 153, 0.12)",
+    Icon: FlaskConical,
+  },
 ];
 
 export default function SearchScreen() {
@@ -44,6 +92,7 @@ export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [isFocused, setIsFocused] = useState(false);
 
   const SEARCH_HISTORY_KEY = 'wavefy_search_history';
   const MAX_HISTORY = 10;
@@ -139,6 +188,9 @@ export default function SearchScreen() {
           </View>
         ) : null}
       </View>
+      <View style={styles.resultAction}>
+        <ChevronRight color={Colors.secondaryText} size={18} />
+      </View>
     </Pressable>
   );
 
@@ -164,9 +216,12 @@ export default function SearchScreen() {
           <Text style={styles.title}>Search</Text>
         </View>
 
-        <View style={styles.searchContainer}>
+        <View style={[
+          styles.searchContainer,
+          isFocused && { borderColor: Colors.accent, borderWidth: 1.2 }
+        ]}>
           <SearchIcon
-            color={Colors.secondaryText}
+            color={isFocused ? Colors.accent : Colors.secondaryText}
             size={18}
             style={styles.searchIcon}
           />
@@ -180,6 +235,8 @@ export default function SearchScreen() {
             onSubmitEditing={isOffline ? undefined : () => handleSearch(query)}
             selectionColor={Colors.accent}
             editable={!isOffline}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
           />
           {query.length > 0 && !isOffline && (
             <Pressable onPress={() => setQuery("")} style={styles.clearButton}>
@@ -208,29 +265,30 @@ export default function SearchScreen() {
             {recentSearches.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.recentHeader}>
-                  <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Recent</Text>
+                  <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Recent Searches</Text>
                   <Pressable onPress={clearAllHistory} hitSlop={8}>
                     <Text style={styles.clearAllText}>Clear All</Text>
                   </Pressable>
                 </View>
-                {recentSearches.map((search, index) => (
-                  <View key={index} style={styles.recentRow}>
-                    <Pressable
-                      style={styles.recentItem}
-                      onPress={() => setQuery(search)}
-                    >
-                      <SearchIcon color={Colors.secondaryText} size={14} style={{ marginRight: 10 }} />
-                      <Text style={styles.recentText}>{search}</Text>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => removeRecent(index)}
-                      hitSlop={8}
-                      style={styles.recentClose}
-                    >
-                      <X color={Colors.secondaryText} size={14} />
-                    </Pressable>
-                  </View>
-                ))}
+                <View style={styles.recentChipsContainer}>
+                  {recentSearches.map((search, index) => (
+                    <View key={index} style={styles.recentChip}>
+                      <Pressable
+                        style={styles.recentChipPressable}
+                        onPress={() => setQuery(search)}
+                      >
+                        <Text style={styles.recentChipText} numberOfLines={1}>{search}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => removeRecent(index)}
+                        hitSlop={8}
+                        style={styles.recentChipClose}
+                      >
+                        <X color={Colors.secondaryText} size={12} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
 
@@ -243,7 +301,7 @@ export default function SearchScreen() {
                     key={genre.name}
                     style={({ pressed }) => [
                       styles.genreTile,
-                      pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }
+                      pressed && { opacity: 0.9, transform: [{ scale: 0.96 }] }
                     ]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -256,8 +314,15 @@ export default function SearchScreen() {
                       end={{ x: 1, y: 1 }}
                       style={styles.genreGradient}
                     >
-                      <genre.Icon color="rgba(255,255,255,0.25)" size={40} style={styles.genreIcon} />
-                      <Text style={styles.genreText}>{genre.name}</Text>
+                      <View style={styles.genreTopRow}>
+                        <View style={[styles.iconContainer, { backgroundColor: genre.iconBg, borderColor: `${genre.accentColor}33` }]}>
+                          <genre.Icon color={genre.accentColor} size={18} />
+                        </View>
+                      </View>
+                      <View style={styles.genreBottomRow}>
+                        <Text style={[styles.genreSubText, { color: `${genre.accentColor}bb` }]}>EXPLORE</Text>
+                        <Text style={styles.genreText}>{genre.name}</Text>
+                      </View>
                     </LinearGradient>
                   </Pressable>
                 ))}
@@ -357,27 +422,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     letterSpacing: -0.3,
   },
-  recentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.border,
-  },
-  recentItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recentText: {
-    fontSize: 16,
-    color: Colors.primaryText,
-    letterSpacing: -0.2,
-  },
-  recentClose: {
-    padding: 4,
-  },
   recentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -389,6 +433,37 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.accent,
   },
+  recentChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  recentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    paddingLeft: 12,
+    paddingRight: 8,
+    height: 32,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  recentChipPressable: {
+    marginRight: 6,
+    justifyContent: 'center',
+  },
+  recentChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: Colors.primaryText,
+  },
+  recentChipClose: {
+    padding: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   genreGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -396,24 +471,42 @@ const styles = StyleSheet.create({
   },
   genreTile: {
     width: TILE_WIDTH,
-    height: 88,
-    borderRadius: 14,
+    height: 104,
+    borderRadius: 18,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   genreGradient: {
     flex: 1,
-    justifyContent: 'flex-end',
-    padding: 16,
+    justifyContent: 'space-between',
+    padding: 14,
   },
-  genreIcon: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
+  genreTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  genreBottomRow: {
+    justifyContent: 'flex-end',
+  },
+  genreSubText: {
+    fontSize: 9,
+    fontWeight: '800' as const,
+    letterSpacing: 1.5,
+    marginBottom: 4,
   },
   genreText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
+    fontWeight: '700' as const,
+    color: '#ffffff',
     letterSpacing: -0.2,
   },
   resultsContainer: {
@@ -430,6 +523,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.whiteAlpha05,
+    alignItems: 'center',
+  },
+  resultAction: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingRight: 4,
   },
   resultArtwork: {
     width: 68,
