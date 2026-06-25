@@ -3,7 +3,7 @@ import { registerRootComponent } from 'expo';
 import { ExpoRoot } from 'expo-router';
 
 // Register the service BEFORE any other app logic
-TrackPlayer.registerPlaybackService(() => require('./service'));
+TrackPlayer.registerPlaybackService(() => require('./service').default || require('./service'));
 
 // Must be exported or imported to be picked up
 import 'expo-router/entry';

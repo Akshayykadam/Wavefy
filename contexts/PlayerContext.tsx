@@ -137,14 +137,26 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   }, []);
 
+  const playbackState = usePlaybackState();
+  const actualPlaybackState = (playbackState as any).state || playbackState;
+
+  useEffect(() => {
+    if (actualPlaybackState !== undefined) {
+      setIsPlaying(actualPlaybackState === State.Playing);
+      setIsLoading(actualPlaybackState === State.Buffering || actualPlaybackState === State.Loading);
+    }
+  }, [actualPlaybackState]);
+
   useTrackPlayerEvents([TrackPlayerEvent.PlaybackState], (event) => {
     if (event.type === TrackPlayerEvent.PlaybackState) {
-      setIsPlaying(event.state === State.Playing);
-      setIsLoading(event.state === State.Buffering || event.state === State.Loading);
+      const stateObj = event.state;
+      const actualState = (stateObj as any).state || stateObj;
+      setIsPlaying(actualState === State.Playing);
+      setIsLoading(actualState === State.Buffering || actualState === State.Loading);
     }
   });
 
-  // Sync state once player is ready. Real-time updates handled by TrackPlayerEvent.PlaybackState listener.
+  // Sync state once player is ready.
   useEffect(() => {
     if (isPlayerReadyRef.current) updateState();
   }, [updateState]);
@@ -155,6 +167,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const [sleepTimer, setSleepTimer] = useState<number | null>(null);
   const sleepTimerRef = useRef<NodeJS.Timeout | number | null>(null);
+  const sleepTimerIntervalRef = useRef<NodeJS.Timeout | number | null>(null);
   const sleepTimerTriggeredRef = useRef(false); // Track if sleep timer stopped playback
 
   const initialSeekPosition = useRef<number | null>(null);
@@ -435,6 +448,10 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   const playEpisode = useCallback(async (episode: Episode, podcast: Podcast, seekPosition?: number) => {
     if (!isPlayerReady) return;
 
+    // Optimistic loading state
+    setIsLoading(true);
+    setIsPlaying(false);
+
     const currentReq = Date.now();
     playRequestId.current = currentReq;
 
@@ -468,27 +485,43 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       await TrackPlayer.pause();
     } catch (e) {}
 
-    if (playRequestId.current !== currentReq) return;
+    try {
+      await TrackPlayer.load({
+        id: String(episode.id),
+        url: trackUrl,
+        title: episode.title,
+        artist: podcast.collectionName,
+        artwork: episode.artwork || podcast.artworkUrl600,
+      });
 
-    await TrackPlayer.load({
-      id: String(episode.id),
-      url: trackUrl,
-      title: episode.title,
-      artist: podcast.collectionName,
-      artwork: episode.artwork || podcast.artworkUrl600,
-    });
+      if (playRequestId.current !== currentReq) return;
 
-    if (playRequestId.current !== currentReq) return;
+      // Seek to position if resuming
+      if (seekPosition && seekPosition > 0) {
+        await TrackPlayer.seekTo(seekPosition);
+      }
 
-    // Seek to position if resuming
-    if (seekPosition && seekPosition > 0) {
-      await TrackPlayer.seekTo(seekPosition);
+      if (playRequestId.current !== currentReq) return;
+
+      await TrackPlayer.play();
+      await TrackPlayer.setRate(playbackRate);
+
+      if (playRequestId.current === currentReq) {
+        setIsPlaying(true);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('[PlayerContext] playEpisode error:', error);
+      if (playRequestId.current === currentReq) {
+        setIsLoading(false);
+        setIsPlaying(false);
+      }
+      Alert.alert(
+        "Playback Error",
+        "Unable to play this episode. The audio file might be temporarily unavailable or the format is unsupported.",
+        [{ text: "OK" }]
+      );
     }
-
-    if (playRequestId.current !== currentReq) return;
-
-    await TrackPlayer.play();
-    await TrackPlayer.setRate(playbackRate);
 
     // Log analytics
     console.log('[Analytics] Episode Started:', {
@@ -600,12 +633,15 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     if (actualState === State.Playing || actualState === State.Buffering) {
       await TrackPlayer.pause();
       setIsPlaying(false); // Optimistic update
+      setIsLoading(false);
     } else {
+      setIsLoading(true); // Optimistic loader spinner immediately when clicking play
       await TrackPlayer.play();
       setIsPlaying(true); // Optimistic update
+      setIsLoading(false);
       sleepTimerTriggeredRef.current = false; // User manually resumed
     }
-    setTimeout(updateState, 500); // veriy after delay
+    setTimeout(updateState, 500); // verify after delay
   }, [updateState]);
 
   const seekTo = useCallback(async (time: number) => {
@@ -636,6 +672,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   // Sleep Timer
   const startSleepTimer = useCallback((minutes: number) => {
     if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
+    if (sleepTimerIntervalRef.current) clearInterval(sleepTimerIntervalRef.current as NodeJS.Timeout);
 
     if (minutes === 0) {
       setSleepTimer(null);
@@ -643,30 +680,61 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
 
     setSleepTimer(minutes);
+    
+    // Set timeout to pause playback when time ends
     sleepTimerRef.current = setTimeout(async () => {
       sleepTimerTriggeredRef.current = true; // Mark that sleep timer stopped playback
       await TrackPlayer.pause();
       setSleepTimer(null);
       sleepTimerRef.current = null;
+      if (sleepTimerIntervalRef.current) {
+        clearInterval(sleepTimerIntervalRef.current as NodeJS.Timeout);
+        sleepTimerIntervalRef.current = null;
+      }
 
       console.log('[Analytics] Sleep Timer Triggered:', {
         episodeId: currentEpisode?.id,
         timestamp: new Date().toISOString(),
       });
     }, minutes * 60 * 1000);
+
+    // Set interval to tick down remaining minutes in real-time
+    let remaining = minutes;
+    sleepTimerIntervalRef.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        if (sleepTimerIntervalRef.current) {
+          clearInterval(sleepTimerIntervalRef.current as NodeJS.Timeout);
+          sleepTimerIntervalRef.current = null;
+        }
+      } else {
+        setSleepTimer(remaining);
+      }
+    }, 60 * 1000);
   }, [currentEpisode]);
 
   const cancelSleepTimer = useCallback(() => {
     if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
+    if (sleepTimerIntervalRef.current) clearInterval(sleepTimerIntervalRef.current as NodeJS.Timeout);
     sleepTimerRef.current = null;
+    sleepTimerIntervalRef.current = null;
     setSleepTimer(null);
   }, []);
 
   useEffect(() => {
     return () => {
       if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current as NodeJS.Timeout);
+      if (sleepTimerIntervalRef.current) clearInterval(sleepTimerIntervalRef.current as NodeJS.Timeout);
     };
   }, []);
+
+  // Cancel sleep timer if playback is manually paused (and not because the sleep timer itself triggered the pause)
+  useEffect(() => {
+    if (!isPlaying && sleepTimer !== null && !sleepTimerTriggeredRef.current) {
+      console.log('[PlayerContext] Playback paused manually; canceling sleep timer.');
+      cancelSleepTimer();
+    }
+  }, [isPlaying, sleepTimer, cancelSleepTimer]);
 
   // Continuation Logic - Find next episode to play
   const findNextEpisode = useCallback((): { episode: Episode; podcast: Podcast; type: ContinuationType } | null => {

@@ -7,7 +7,6 @@ import {
   FlatList,
   Dimensions,
 } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -76,63 +75,48 @@ export default function QueueScreen() {
 
   const upNextEpisodes = getUpNextEpisodes();
 
-  const renderRightActions = (index: number) => (
-    <Pressable
-      style={styles.swipeDeleteBtn}
-      onPress={() => removeFromQueue(index)}
-    >
-      <Trash2 color="#fff" size={20} />
-    </Pressable>
-  );
-
   const renderQueueItem = ({ item, index }: { item: Episode; index: number }) => (
-    <Swipeable
-      renderRightActions={() => renderRightActions(index)}
-      friction={2}
-      rightThreshold={40}
+    <Pressable
+      style={({ pressed }) => [styles.queueItem, pressed && { opacity: 0.7 }]}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        // Play this episode and remove from queue
+        const podcast = currentPodcast || {
+          collectionId: -1,
+          collectionName: item.podcastTitle || '',
+          artistName: item.artistName || '',
+          artworkUrl600: item.artwork || '',
+          artworkUrl100: item.artwork || '',
+          feedUrl: '',
+          trackCount: 0,
+          releaseDate: '',
+          primaryGenreName: '',
+          collectionViewUrl: '',
+        };
+        removeFromQueue(index);
+        playEpisode(item, podcast);
+      }}
     >
+      <Image
+        source={{ uri: item.artwork || currentPodcast?.artworkUrl600 }}
+        style={styles.queueArtwork}
+        contentFit="cover"
+      />
+      <View style={styles.queueInfo}>
+        <Text style={styles.queueTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
+        <Text style={styles.queueSubtitle} numberOfLines={1} textBreakStrategy="simple">
+          {item.podcastTitle || currentPodcast?.collectionName}
+          {item.duration > 0 ? ` · ${formatDuration(item.duration)}` : ''}
+        </Text>
+      </View>
       <Pressable
-        style={({ pressed }) => [styles.queueItem, pressed && { opacity: 0.7 }]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          // Play this episode and remove from queue
-          const podcast = currentPodcast || {
-            collectionId: -1,
-            collectionName: item.podcastTitle || '',
-            artistName: item.artistName || '',
-            artworkUrl600: item.artwork || '',
-            artworkUrl100: item.artwork || '',
-            feedUrl: '',
-            trackCount: 0,
-            releaseDate: '',
-            primaryGenreName: '',
-            collectionViewUrl: '',
-          };
-          removeFromQueue(index);
-          playEpisode(item, podcast);
-        }}
+        onPress={() => removeFromQueue(index)}
+        style={styles.removeBtn}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Image
-          source={{ uri: item.artwork || currentPodcast?.artworkUrl600 }}
-          style={styles.queueArtwork}
-          contentFit="cover"
-        />
-        <View style={styles.queueInfo}>
-          <Text style={styles.queueTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
-          <Text style={styles.queueSubtitle} numberOfLines={1} textBreakStrategy="simple">
-            {item.podcastTitle || currentPodcast?.collectionName}
-            {item.duration > 0 ? ` · ${formatDuration(item.duration)}` : ''}
-          </Text>
-        </View>
-        <Pressable
-          onPress={() => removeFromQueue(index)}
-          style={styles.removeBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Trash2 color={Colors.accent} size={16} />
-        </Pressable>
+        <Trash2 color={Colors.accent} size={16} />
       </Pressable>
-    </Swipeable>
+    </Pressable>
   );
 
   const renderUpNextItem = ({ item }: { item: Episode }) => (
@@ -385,14 +369,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  swipeDeleteBtn: {
-    backgroundColor: '#ff4d4d',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 70,
-    height: '100%',
-    borderRadius: 10,
-  },
+
   emptyState: {
     alignItems: 'center',
     paddingTop: 80,

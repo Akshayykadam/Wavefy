@@ -80,10 +80,10 @@ const formatDuration = (seconds: number): string => {
 interface PlayerProgressSectionProps {
   currentEpisode: Episode;
   seekTo: (position: number) => void;
+  progress: { position: number; duration: number; buffered: number };
 }
 
-function PlayerProgressSection({ currentEpisode, seekTo }: PlayerProgressSectionProps) {
-  const progress = useProgress(500);
+function PlayerProgressSection({ currentEpisode, seekTo, progress }: PlayerProgressSectionProps) {
   const position = progress.position * 1000;
   const duration = progress.duration * 1000;
 
@@ -159,6 +159,9 @@ export default function PlayerScreen() {
   const { isLiked, toggleLike } = useLikedEpisodes();
   const { isDownloaded, getDownloadProgress, downloadEpisode, deleteDownload } = useDownloads();
   const { playlists, addToPlaylist } = usePlaylist();
+
+  const progress = useProgress(500);
+  const isPlaybackLoading = isLoading || (isPlaying && progress.duration === 0);
 
   // Description LayoutAnimation logic removed as we use ShowNotesSheet now
 
@@ -254,21 +257,6 @@ export default function PlayerScreen() {
               )}
             </Pressable>
             <Pressable onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              toggleLike({
-                ...currentEpisode,
-                artwork: currentEpisode.artwork || currentPodcast.artworkUrl600,
-                podcastTitle: currentPodcast.collectionName,
-                artistName: currentPodcast.artistName,
-              });
-            }} style={styles.headerButton}>
-              <Heart
-                color={isLiked(currentEpisode.id) ? Colors.accent : Colors.primaryText}
-                size={24}
-                fill={isLiked(currentEpisode.id) ? Colors.accent : "transparent"}
-              />
-            </Pressable>
-            <Pressable onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               setMenuVisible(true);
             }} style={styles.headerButton}>
@@ -305,11 +293,74 @@ export default function PlayerScreen() {
                 {currentPodcast.collectionName}
               </Text>
             </Pressable>
+
+            <View style={styles.actionRow}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  toggleLike({
+                    ...currentEpisode,
+                    artwork: currentEpisode.artwork || currentPodcast.artworkUrl600,
+                    podcastTitle: currentPodcast.collectionName,
+                    artistName: currentPodcast.artistName,
+                  });
+                }}
+                style={styles.actionButton}
+              >
+                <Heart
+                  color={isLiked(currentEpisode.id) ? Colors.accent : Colors.primaryText}
+                  size={22}
+                  fill={isLiked(currentEpisode.id) ? Colors.accent : "transparent"}
+                />
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  if (isDownloaded(currentEpisode.id)) {
+                    deleteDownload(currentEpisode.id);
+                  } else if (getDownloadProgress(currentEpisode.id) === 0 || getDownloadProgress(currentEpisode.id) === 100) {
+                    downloadEpisode(currentEpisode, currentPodcast);
+                  }
+                }}
+                style={styles.actionButton}
+              >
+                {getDownloadProgress(currentEpisode.id) > 0 && getDownloadProgress(currentEpisode.id) < 100 ? (
+                  <ActivityIndicator size="small" color={Colors.accent} />
+                ) : isDownloaded(currentEpisode.id) ? (
+                  <Check color={Colors.accent} size={22} />
+                ) : (
+                  <Download color={Colors.primaryText} size={22} />
+                )}
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setPlaylistModalVisible(true);
+                }}
+                style={styles.actionButton}
+              >
+                <Plus color={Colors.primaryText} size={22} />
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setMenuVisible(true);
+                }}
+                style={styles.actionButton}
+              >
+                <Clock color={sleepTimer ? Colors.accent : Colors.primaryText} size={22} />
+                {sleepTimer && <Text style={styles.actionBadgeText}>{sleepTimer}m</Text>}
+              </Pressable>
+            </View>
           </View>
 
           <PlayerProgressSection
             currentEpisode={currentEpisode}
             seekTo={seekTo}
+            progress={progress}
           />
 
           <View style={styles.controls}>
@@ -333,7 +384,7 @@ export default function PlayerScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                 togglePlayPause();
               }}>
-                {isLoading ? (
+                {isPlaybackLoading ? (
                   <ActivityIndicator size="large" color={Colors.black} />
                 ) : isPlaying ? (
                   <Pause color={Colors.black} size={32} fill={Colors.black} />
@@ -630,6 +681,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.black,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingHorizontal: 24,
+  },
+  actionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  actionBadgeText: {
+    position: 'absolute',
+    bottom: -14,
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.accent,
   },
   safeArea: {
     flex: 1,

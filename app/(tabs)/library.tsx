@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { View, Text, StyleSheet, FlatList, Pressable, Animated, Dimensions } from "react-native";
-import Swipeable from "react-native-gesture-handler/Swipeable";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Play, Trash2, Heart, Download, Headphones, Music2, Plus, Clock } from "lucide-react-native";
@@ -228,47 +227,29 @@ export default function LibraryScreen() {
     </Pressable>
   ), [startLikedPlayback]);
 
-  const renderDownloadedRightActions = (id: string) => (
-    <Pressable
-      style={styles.swipeDeleteBtn}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        deleteDownload(id);
-      }}
-    >
-      <Trash2 size={20} color="#fff" />
-    </Pressable>
-  );
-
   const renderDownloadedEpisode = useCallback(({ item }: { item: any }) => (
-    <Swipeable
-      renderRightActions={() => renderDownloadedRightActions(item.id)}
-      friction={2}
-      rightThreshold={40}
+    <Pressable
+      style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
+      onPress={() => startDownloadPlayback(item)}
     >
+      <Image source={{ uri: item.podcastArtwork || item.artwork }} style={styles.episodeArtwork} contentFit="cover" />
+      <View style={styles.episodeInfo}>
+        <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.episodeSubtitle}>
+          {item.status === 'downloading' ? `Downloading...` : (item.podcastName || 'Downloaded')}
+        </Text>
+      </View>
       <Pressable
-        style={({ pressed }) => [styles.episodeContainer, pressed && { backgroundColor: Colors.surfaceLight }]}
-        onPress={() => startDownloadPlayback(item)}
+        style={styles.deleteBtn}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          deleteDownload(item.id);
+        }}
+        hitSlop={10}
       >
-        <Image source={{ uri: item.podcastArtwork || item.artwork }} style={styles.episodeArtwork} contentFit="cover" />
-        <View style={styles.episodeInfo}>
-          <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
-          <Text style={styles.episodeSubtitle}>
-            {item.status === 'downloading' ? `Downloading...` : (item.podcastName || 'Downloaded')}
-          </Text>
-        </View>
-        <Pressable
-          style={styles.deleteBtn}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            deleteDownload(item.id);
-          }}
-          hitSlop={10}
-        >
-          <Trash2 size={18} color={Colors.secondaryText} />
-        </Pressable>
+        <Trash2 size={18} color={Colors.secondaryText} />
       </Pressable>
-    </Swipeable>
+    </Pressable>
   ), [startDownloadPlayback, deleteDownload]);
 
   const renderHistoryEpisode = useCallback(({ item }: { item: any }) => (
@@ -561,7 +542,8 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   tabButton: {
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 16,
     paddingHorizontal: 16,
     marginRight: 8,
   },
@@ -571,8 +553,6 @@ const styles = StyleSheet.create({
     color: Colors.secondaryText,
     letterSpacing: -0.2,
     lineHeight: 20,
-    paddingTop: 2,
-    paddingBottom: 4,
   },
   activeTabText: {
     color: Colors.primaryText,
@@ -657,15 +637,7 @@ const styles = StyleSheet.create({
   deleteBtn: {
     padding: 8,
   },
-  swipeDeleteBtn: {
-    backgroundColor: '#ff4d4d',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 70,
-    height: '100%',
-    borderRadius: 14,
-    marginBottom: 10,
-  },
+
   completedBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,

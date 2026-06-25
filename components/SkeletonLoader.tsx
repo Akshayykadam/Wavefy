@@ -60,7 +60,7 @@ export default function SkeletonLoader({ style }: SkeletonProps) {
 
   const opacity = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [0.1, 0.35],
+    outputRange: [0.25, 0.65],
   });
 
   return (
@@ -70,7 +70,7 @@ export default function SkeletonLoader({ style }: SkeletonProps) {
 
 const styles = StyleSheet.create({
   skeleton: {
-    backgroundColor: Colors.surfaceElevated,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 8,
   },
 });

@@ -22,13 +22,70 @@ plugins {
   id("expo-autolinking-settings")
 }
 
+// Dynamically exclude developer client modules in release/production builds
+boolean isReleaseBuild = gradle.startParameter.taskNames.any { 
+  it.toLowerCase().contains("release") || it.toLowerCase().contains("bundle") 
+}
+
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   if (System.getenv('EXPO_USE_COMMUNITY_AUTOLINKING') == '1') {
     ex.autolinkLibrariesFromCommand()
   } else {
-    ex.autolinkLibrariesFromCommand(expoAutolinking.rnConfigCommand)
+    def command = []
+    command.addAll(expoAutolinking.rnConfigCommand)
+    if (isReleaseBuild) {
+      println "DEBUG: Appending exclusions to React Native autolinking command"
+      command.add("--exclude")
+      command.add("expo-dev-client")
+      command.add("--exclude")
+      command.add("expo-dev-launcher")
+      command.add("--exclude")
+      command.add("expo-dev-menu")
+      command.add("--exclude")
+      command.add("expo-dev-menu-interface")
+    }
+    println "DEBUG: React Native autolink command: " + command
+    ex.autolinkLibrariesFromCommand(command)
   }
 }
+
+// Dynamically patch package.json to exclude dev client modules from Expo autolinking on release builds
+File pkgFile = new File(rootDir, "../package.json")
+String originalPkgContent = pkgFile.text
+
+if (isReleaseBuild) {
+  println "DEBUG: Release build detected, dynamically patching package.json to exclude dev client modules..."
+  try {
+    def json = new groovy.json.JsonSlurper().parseText(originalPkgContent)
+    if (!json.containsKey("expo")) {
+      json["expo"] = [:]
+    }
+    if (!json["expo"].containsKey("autolinking")) {
+      json["expo"]["autolinking"] = [:]
+    }
+    json["expo"]["autolinking"]["exclude"] = [
+      "expo-dev-client",
+      "expo-dev-launcher",
+      "expo-dev-menu",
+      "expo-dev-menu-interface"
+    ]
+    pkgFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json))
+  } catch (Exception e) {
+    println "DEBUG: Failed to patch package.json: " + e.message
+  }
+}
+
+if (isReleaseBuild) {
+  gradle.buildFinished {
+    println "DEBUG: Restoring original package.json content..."
+    try {
+      pkgFile.text = originalPkgContent
+    } catch (Exception e) {
+      println "DEBUG: Failed to restore package.json: " + e.message
+    }
+  }
+}
+
 expoAutolinking.useExpoModules()
 
 rootProject.name = 'Wavefy'

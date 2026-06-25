@@ -22,6 +22,7 @@ import { Podcast, Episode } from "@/types/podcast";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useFollowedPodcasts } from "@/contexts/FollowedPodcastsContext";
 import { useDownloads } from "@/contexts/DownloadContext";
+import { useNetwork } from "@/contexts/NetworkContext";
 import SkeletonLoader from "@/components/SkeletonLoader";
 
 const { width } = Dimensions.get("window");
@@ -145,31 +146,49 @@ export default function PodcastDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { playEpisode, currentEpisode, isPlaying, togglePlayPause, setPodcastEpisodes } = usePlayer();
-  const { isFollowing, toggleFollow } = useFollowedPodcasts();
-  const { downloadEpisode, isDownloaded, getDownloadProgress } = useDownloads();
+  const { isFollowing, toggleFollow, followedPodcasts } = useFollowedPodcasts();
+  const { downloadEpisode, isDownloaded, getDownloadProgress, downloads } = useDownloads();
+  const { isOffline } = useNetwork();
   const scrollY = React.useRef(new Animated.Value(0)).current;
 
   const { data: podcast, isLoading } = useQuery({
     queryKey: ["podcast", id],
     queryFn: async () => {
+      const followed = followedPodcasts.find(p => String(p.collectionId) === id);
+      if (followed) return followed;
+
+      if (isOffline) {
+        throw new Error("Offline");
+      }
+
       const response = await fetch(`https://itunes.apple.com/lookup?id=${id}`);
       const data = await response.json();
       return data.results[0] as Podcast;
     },
+    enabled: !!id,
   });
 
   const { data: episodes = [], isLoading: isEpisodesLoading, isError: isEpisodesError } = useQuery({
     queryKey: ["episodes", podcast?.feedUrl],
     queryFn: () => parseRSS(podcast?.feedUrl || ""),
-    enabled: !!podcast?.feedUrl,
+    enabled: !!podcast?.feedUrl && !isOffline,
     retry: 1,                      // Only retry once on failure (avoid infinite hangs)
     staleTime: 1000 * 60 * 15,     // 15 min — don't refetch on every focus
     gcTime: 1000 * 60 * 30,        // Keep in cache for 30 min
   });
 
+  const offlineEpisodes = React.useMemo(() => {
+    if (!isOffline || !podcast) return [];
+    return Object.values(downloads).filter(
+      (d: any) => d.status === 'completed' && d.podcastName === podcast.collectionName
+    ) as Episode[];
+  }, [isOffline, podcast, downloads]);
+
+  const displayEpisodes = isOffline ? offlineEpisodes : episodes;
+
   React.useEffect(() => {
-    if (episodes.length > 0) setPodcastEpisodes(episodes);
-  }, [episodes, setPodcastEpisodes]);
+    if (displayEpisodes.length > 0) setPodcastEpisodes(displayEpisodes);
+  }, [displayEpisodes, setPodcastEpisodes]);
 
   // Stable callbacks for episode row actions — prevents MemoizedEpisodeRow re-renders
   const handleEpisodePlay = React.useCallback((episode: Episode) => {
@@ -248,7 +267,7 @@ export default function PodcastDetailScreen() {
     );
   }
 
-  const latestEpisode = episodes.length > 0 ? episodes[0] : null;
+  const latestEpisode = displayEpisodes.length > 0 ? displayEpisodes[0] : null;
   const isLatestPlaying = latestEpisode && currentEpisode?.id === latestEpisode.id && isPlaying;
 
   return (
@@ -281,7 +300,7 @@ export default function PodcastDetailScreen() {
         </View>
 
         <Animated.FlatList
-          data={episodes}
+          data={displayEpisodes}
           keyExtractor={(item: Episode) => item.id.toString()}
           style={styles.content}
           showsVerticalScrollIndicator={false}
@@ -374,13 +393,17 @@ export default function PodcastDetailScreen() {
 
               <View style={[styles.episodesSection, { paddingBottom: 0 }]}>
                 <Text style={styles.sectionTitle}>
-                  Episodes{episodes.length > 0 ? ` (${episodes.length})` : ''}
+                  Episodes{displayEpisodes.length > 0 ? ` (${displayEpisodes.length})` : ''}
                 </Text>
 
                 {isEpisodesLoading ? (
                   <View>
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, width: '100%' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 20, gap: 10 }}>
+                      <ActivityIndicator size="small" color={Colors.accent} />
+                      <Text style={{ color: Colors.secondaryText, fontSize: 14, fontWeight: '500' }}>Retrieving episodes...</Text>
+                    </View>
+                    {[1, 2, 3].map((i) => (
+                      <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, width: '100%', opacity: 0.6 }}>
                         <SkeletonLoader style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
                         <View style={{ flex: 1 }}>
                           <SkeletonLoader style={{ height: 16, width: '80%', marginBottom: 6 }} />
@@ -391,8 +414,10 @@ export default function PodcastDetailScreen() {
                   </View>
                 ) : isEpisodesError ? (
                   <Text style={styles.noEpisodes}>Failed to load episodes. Pull down to retry.</Text>
-                ) : episodes.length === 0 ? (
-                  <Text style={styles.noEpisodes}>No episodes available</Text>
+                ) : displayEpisodes.length === 0 ? (
+                  <Text style={styles.noEpisodes}>
+                    {isOffline ? "Offline mode: No downloaded episodes found for this podcast." : "No episodes available"}
+                  </Text>
                 ) : null}
               </View>
             </>

@@ -153,16 +153,14 @@ TaskManager.defineTask(BACKGROUND_TASK_NAME, async () => {
  */
 export async function registerBackgroundFetch(): Promise<void> {
   try {
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_TASK_NAME);
-    if (isRegistered) return;
-
+    // Unconditionally register/re-register to ensure the new battery-friendly configuration is applied
     await BackgroundFetch.registerTaskAsync(BACKGROUND_TASK_NAME, {
-      minimumInterval: 15 * 60, // 15 minutes (Android minimum)
-      stopOnTerminate: false,   // Keep running after app is killed
-      startOnBoot: true,        // Start after device reboot
+      minimumInterval: 3 * 60 * 60, // 3 hours (more battery friendly than 15 minutes)
+      stopOnTerminate: true,        // Stop task when user terminates the app (highly battery friendly)
+      startOnBoot: false,           // Do not start on boot to prevent background execution before app launch
     });
 
-    console.log('[BackgroundNotifications] Background fetch registered');
+    console.log('[BackgroundNotifications] Background fetch registered (battery optimized)');
   } catch (e) {
     console.error('[BackgroundNotifications] Failed to register background fetch:', e);
   }
