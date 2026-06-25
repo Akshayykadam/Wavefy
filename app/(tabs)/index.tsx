@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Bell, Play, ChevronRight, ListMusic, Sparkles, Zap } from "lucide-react-native";
+import { Bell, Play, ChevronRight, ListMusic, Sparkles, Zap, Settings } from "lucide-react-native";
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -223,19 +223,29 @@ export default function HomeScreen() {
           <View style={styles.titleContainer}>
             <Text style={styles.title}>{getGreeting()}</Text>
           </View>
-          <Pressable
-            onPress={() => {
-              router.push('/notifications' as any);
-            }}
-            style={styles.bellButton}
-          >
-            <Bell color={Colors.primaryText} size={22} />
-            {unreadCount > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            )}
-          </Pressable>
+          <View style={styles.headerButtons}>
+            <Pressable
+              onPress={() => {
+                router.push('/notifications' as any);
+              }}
+              style={styles.headerButton}
+            >
+              <Bell color={Colors.primaryText} size={22} />
+              {unreadCount > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                </View>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                router.push('/settings' as any);
+              }}
+              style={styles.headerButton}
+            >
+              <Settings color={Colors.primaryText} size={20} />
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView
@@ -339,7 +349,12 @@ const styles = StyleSheet.create({
     color: Colors.primaryText,
     letterSpacing: -0.5,
   },
-  bellButton: {
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
