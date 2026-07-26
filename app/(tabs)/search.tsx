@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Search as SearchIcon, X, Cpu, Crosshair, Laugh, Newspaper, Briefcase, Trophy, HeartPulse, FlaskConical, WifiOff, ChevronRight } from "lucide-react-native";
+import { Search as SearchIcon, X, Cpu, Crosshair, Laugh, Newspaper, Briefcase, Trophy, HeartPulse, FlaskConical, WifiOff, ChevronRight, Play, Mic, Radio } from "lucide-react-native";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -18,9 +18,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
-import { Podcast } from "@/types/podcast";
+import { Podcast, Episode } from "@/types/podcast";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import { useNetwork } from "@/contexts/NetworkContext";
+import { usePlayer } from "@/contexts/PlayerContext";
+import { getOptimizedArtwork } from "@/utils/image";
 
 const { width } = Dimensions.get("window");
 const GRID_GAP = 12;
@@ -30,56 +32,56 @@ const TILE_WIDTH = (width - GRID_PADDING * 2 - GRID_GAP) / 2;
 const GENRE_TILES = [
   {
     name: "Technology",
-    colors: ["#121214", "#0a2e1b"] as const,
+    colors: ["#18181b", "#102318"] as const,
     accentColor: "#1db954",
     iconBg: "rgba(29, 185, 84, 0.12)",
     Icon: Cpu,
   },
   {
     name: "True Crime",
-    colors: ["#121214", "#3b0c0c"] as const,
-    accentColor: "#ff4d4d",
-    iconBg: "rgba(255, 77, 77, 0.12)",
+    colors: ["#18181b", "#2a1017"] as const,
+    accentColor: "#f43f5e",
+    iconBg: "rgba(244, 63, 94, 0.12)",
     Icon: Crosshair,
   },
   {
     name: "Comedy",
-    colors: ["#121214", "#4a1228"] as const,
-    accentColor: "#ff4d82",
-    iconBg: "rgba(255, 77, 130, 0.12)",
+    colors: ["#18181b", "#271b0c"] as const,
+    accentColor: "#f59e0b",
+    iconBg: "rgba(245, 158, 11, 0.12)",
     Icon: Laugh,
   },
   {
     name: "News",
-    colors: ["#121214", "#0c2540"] as const,
+    colors: ["#18181b", "#0f1d33"] as const,
     accentColor: "#3b82f6",
     iconBg: "rgba(59, 130, 246, 0.12)",
     Icon: Newspaper,
   },
   {
     name: "Business",
-    colors: ["#121214", "#230f40"] as const,
+    colors: ["#18181b", "#1c122b"] as const,
     accentColor: "#a855f7",
     iconBg: "rgba(168, 85, 247, 0.12)",
     Icon: Briefcase,
   },
   {
     name: "Sports",
-    colors: ["#121214", "#3b2a0c"] as const,
-    accentColor: "#f59e0b",
-    iconBg: "rgba(245, 158, 11, 0.12)",
+    colors: ["#18181b", "#0d261e"] as const,
+    accentColor: "#10b981",
+    iconBg: "rgba(16, 185, 129, 0.12)",
     Icon: Trophy,
   },
   {
     name: "Health",
-    colors: ["#121214", "#0c3b3b"] as const,
+    colors: ["#18181b", "#0c252b"] as const,
     accentColor: "#06b6d4",
     iconBg: "rgba(6, 182, 212, 0.12)",
     Icon: HeartPulse,
   },
   {
     name: "Science",
-    colors: ["#121214", "#3b0c2e"] as const,
+    colors: ["#18181b", "#271024"] as const,
     accentColor: "#ec4899",
     iconBg: "rgba(236, 72, 153, 0.12)",
     Icon: FlaskConical,
@@ -89,8 +91,10 @@ const GENRE_TILES = [
 export default function SearchScreen() {
   const router = useRouter();
   const { isOffline } = useNetwork();
+  const { playEpisode } = usePlayer();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [searchTarget, setSearchTarget] = useState<'podcasts' | 'episodes'>('podcasts');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -124,16 +128,44 @@ export default function SearchScreen() {
   }, [query]);
 
   const { data: results = [], isLoading } = useQuery({
-    queryKey: ["search", debouncedQuery],
+    queryKey: ["search", debouncedQuery, searchTarget],
     queryFn: async () => {
       if (!debouncedQuery.trim()) return [];
-      const response = await fetch(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(
-          debouncedQuery
-        )}&media=podcast&limit=20`
-      );
-      const data = await response.json();
-      return data.results as Podcast[];
+      try {
+        if (searchTarget === 'episodes') {
+          const response = await fetch(
+            `https://itunes.apple.com/search?term=${encodeURIComponent(
+              debouncedQuery
+            )}&media=podcast&entity=podcastEpisode&limit=25`
+          );
+          if (!response.ok) return [];
+          const data = await response.json();
+          return (data.results || []).map((item: any) => ({
+            id: String(item.trackId || item.collectionId || Math.random()),
+            title: item.trackName || item.collectionName || 'Untitled Episode',
+            description: item.shortDescription || item.description || '',
+            audioUrl: item.episodeUrl || item.previewUrl || '',
+            pubDate: item.releaseDate || '',
+            duration: Math.round((item.trackTimeMillis || 0) / 1000),
+            artwork: item.artworkUrl600 || item.artworkUrl100 || '',
+            podcastTitle: item.collectionName || '',
+            artistName: item.artistName || '',
+            podcastId: item.collectionId,
+          }));
+        } else {
+          const response = await fetch(
+            `https://itunes.apple.com/search?term=${encodeURIComponent(
+              debouncedQuery
+            )}&media=podcast&limit=20`
+          );
+          if (!response.ok) return [];
+          const data = await response.json();
+          return (data.results || []) as Podcast[];
+        }
+      } catch (e) {
+        console.error('Error fetching search results:', e);
+        return [];
+      }
     },
     enabled: debouncedQuery.length > 0 && !isOffline,
   });
@@ -170,10 +202,11 @@ export default function SearchScreen() {
       }}
     >
       <Image
-        source={{ uri: item.artworkUrl600 }}
+        source={{ uri: getOptimizedArtwork(item.artworkUrl600, 160) }}
         style={styles.resultArtwork}
         contentFit="cover"
-        transition={200}
+        cachePolicy="memory-disk"
+        transition={150}
       />
       <View style={styles.resultInfo}>
         <Text style={styles.resultName} numberOfLines={2}>
@@ -190,6 +223,62 @@ export default function SearchScreen() {
       </View>
       <View style={styles.resultAction}>
         <ChevronRight color={Colors.secondaryText} size={18} />
+      </View>
+    </Pressable>
+  );
+
+  const renderEpisodeItem = ({ item }: { item: any }) => (
+    <Pressable
+      style={({ pressed }) => [styles.resultItem, pressed && { opacity: 0.7 }]}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        addToHistory(query);
+        const ep: Episode = {
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          audioUrl: item.audioUrl,
+          pubDate: item.pubDate,
+          duration: item.duration,
+          artwork: item.artwork,
+          podcastTitle: item.podcastTitle,
+          artistName: item.artistName,
+        };
+        const pod: Podcast = {
+          collectionId: item.podcastId || 0,
+          collectionName: item.podcastTitle || 'Podcast',
+          artistName: item.artistName || '',
+          artworkUrl600: item.artwork,
+          artworkUrl100: item.artwork,
+          feedUrl: '',
+          trackCount: 0,
+          releaseDate: '',
+          primaryGenreName: '',
+          collectionViewUrl: '',
+        };
+        playEpisode(ep, pod);
+      }}
+    >
+      <Image
+        source={{ uri: getOptimizedArtwork(item.artwork, 160) }}
+        style={styles.resultArtwork}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+      />
+      <View style={styles.resultInfo}>
+        <Text style={styles.resultName} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={styles.resultArtist} numberOfLines={1}>
+          {item.podcastTitle || item.artistName}
+        </Text>
+        <View style={styles.episodeMetaBadge}>
+          <Text style={styles.episodeMetaBadgeText}>Episode</Text>
+        </View>
+      </View>
+      <View style={styles.playActionBtn}>
+        <Play color="#fff" size={14} fill="#fff" />
       </View>
     </Pressable>
   );
@@ -246,6 +335,59 @@ export default function SearchScreen() {
             </Pressable>
           )}
         </View>
+
+        {/* Search Target Selector (Shows vs Episodes) */}
+        {!isOffline && (
+          <View style={styles.targetToggleRow}>
+            <Pressable
+              style={[
+                styles.targetToggleBtn,
+                searchTarget === 'podcasts' && styles.targetToggleBtnActive,
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSearchTarget('podcasts');
+              }}
+            >
+              <Mic
+                size={14}
+                color={searchTarget === 'podcasts' ? Colors.black : Colors.secondaryText}
+              />
+              <Text
+                style={[
+                  styles.targetToggleText,
+                  searchTarget === 'podcasts' && styles.targetToggleTextActive,
+                ]}
+              >
+                Shows
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.targetToggleBtn,
+                searchTarget === 'episodes' && styles.targetToggleBtnActive,
+              ]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSearchTarget('episodes');
+              }}
+            >
+              <Radio
+                size={14}
+                color={searchTarget === 'episodes' ? Colors.black : Colors.secondaryText}
+              />
+              <Text
+                style={[
+                  styles.targetToggleText,
+                  searchTarget === 'episodes' && styles.targetToggleTextActive,
+                ]}
+              >
+                Episodes
+              </Text>
+            </Pressable>
+          </View>
+        )}
 
         {isOffline ? (
           <View style={styles.offlineState}>
@@ -334,8 +476,8 @@ export default function SearchScreen() {
         ) : (
           <FlatList
             data={results}
-            renderItem={renderPodcastItem}
-            keyExtractor={(item) => item.collectionId.toString()}
+            renderItem={searchTarget === 'episodes' ? (renderEpisodeItem as any) : (renderPodcastItem as any)}
+            keyExtractor={(item: any) => (item.id ? String(item.id) : String(item.collectionId || Math.random()))}
             contentContainerStyle={styles.resultsContainer}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
@@ -600,5 +742,56 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     letterSpacing: -0.1,
+  },
+  targetToggleRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  targetToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.whiteAlpha05,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.whiteAlpha05,
+  },
+  targetToggleBtnActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  targetToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+  },
+  targetToggleTextActive: {
+    color: Colors.black,
+  },
+  episodeMetaBadge: {
+    backgroundColor: Colors.accent + '20',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  episodeMetaBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.accent,
+  },
+  playActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

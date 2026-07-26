@@ -11,8 +11,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 import * as IntentLauncher from "expo-intent-launcher";
+import * as Haptics from "expo-haptics";
 import {
   ArrowLeft,
   Settings,
@@ -26,10 +28,14 @@ import {
   AlertTriangle,
   RefreshCw,
   CheckCircle,
+  Wifi,
+  Zap,
+  Signal,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useDownloads } from "@/contexts/DownloadContext";
+import { useAudioQuality } from "@/contexts/AudioQualityContext";
 import pkg from "../package.json";
 
 interface UpdateInfo {
@@ -44,11 +50,25 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { continuationSettings, updateContinuationSetting, clearHistory } = usePlayer();
   const { downloads, deleteDownload } = useDownloads();
+  const { qualityMode, effectiveQuality, networkType, setQualityMode } = useAudioQuality();
 
   // Settings states
   const [streamWifiOnly, setStreamWifiOnly] = useState(false);
   const [downloadWifiOnly, setDownloadWifiOnly] = useState(false);
+  const [cleanMode, setCleanMode] = useState(false);
   const [preferredQuality, setPreferredQuality] = useState('High');
+
+  useEffect(() => {
+    AsyncStorage.getItem('@castbee_clean_mode').then((val) => {
+      if (val !== null) setCleanMode(JSON.parse(val));
+    });
+  }, []);
+
+  const handleToggleCleanMode = async (val: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCleanMode(val);
+    await AsyncStorage.setItem('@castbee_clean_mode', JSON.stringify(val));
+  };
 
   // Cache state
   const [cacheSize, setCacheSize] = useState("0 B");
@@ -437,10 +457,60 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          {/* Preferences Section */}
+          {/* Audio Quality & Network Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Network & Playback</Text>
+            <Text style={styles.sectionTitle}>Audio Quality & Network</Text>
             <View style={styles.card}>
+              <View style={styles.qualityHeaderRow}>
+                <View style={styles.settingLeft}>
+                  <Text style={styles.settingText}>Streaming Quality</Text>
+                  <Text style={styles.settingDescription}>
+                    {qualityMode === 'auto'
+                      ? `Adaptive mode active: ${effectiveQuality.toUpperCase()} stream on ${networkType.toUpperCase()}`
+                      : `Fixed quality: Always streaming at ${qualityMode.toUpperCase()}`}
+                  </Text>
+                </View>
+                <View style={styles.effectivePill}>
+                  <Zap size={12} color={Colors.accent} />
+                  <Text style={styles.effectivePillText}>{effectiveQuality.toUpperCase()}</Text>
+                </View>
+              </View>
+
+              {/* Quality Chips */}
+              <View style={styles.qualityOptionsRow}>
+                {[
+                  { mode: 'auto', label: 'Auto', desc: 'Adaptive' },
+                  { mode: 'high', label: 'High', desc: '320 kbps' },
+                  { mode: 'medium', label: 'Medium', desc: '160 kbps' },
+                  { mode: 'low', label: 'Saver', desc: '96 kbps' },
+                ].map((item) => {
+                  const isSelected = qualityMode === item.mode;
+                  return (
+                    <Pressable
+                      key={item.mode}
+                      style={({ pressed }) => [
+                        styles.qualityChip,
+                        isSelected && styles.qualityChipActive,
+                        pressed && { opacity: 0.8 },
+                      ]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setQualityMode(item.mode as any);
+                      }}
+                    >
+                      <Text style={[styles.qualityChipTitle, isSelected && styles.qualityChipTitleActive]}>
+                        {item.label}
+                      </Text>
+                      <Text style={[styles.qualityChipDesc, isSelected && styles.qualityChipDescActive]}>
+                        {item.desc}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={styles.divider} />
+
               <View style={styles.settingRow}>
                 <View style={styles.settingLeft}>
                   <Text style={styles.settingText}>Stream Over Wi-Fi Only</Text>
@@ -471,13 +541,18 @@ export default function SettingsScreen() {
 
               <View style={styles.divider} />
 
-              <Pressable style={({ pressed }) => [styles.prefItem, pressed && { backgroundColor: Colors.surfaceLight }]} onPress={cycleQuality}>
+              <View style={styles.settingRow}>
                 <View style={styles.settingLeft}>
-                  <Text style={styles.settingText}>Audio Streaming Quality</Text>
-                  <Text style={styles.settingDescription}>Current Quality: {preferredQuality}</Text>
+                  <Text style={styles.settingText}>Clean Mode (Family Safe)</Text>
+                  <Text style={styles.settingDescription}>Hide podcasts with explicit content rating</Text>
                 </View>
-                <ChevronRight color={Colors.secondaryText} size={18} />
-              </Pressable>
+                <Switch
+                  value={cleanMode}
+                  onValueChange={handleToggleCleanMode}
+                  trackColor={{ false: Colors.border, true: Colors.accent }}
+                  thumbColor={'#fff'}
+                />
+              </View>
             </View>
           </View>
 
@@ -732,5 +807,64 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: Colors.accent,
     borderRadius: 3,
+  },
+  qualityHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  effectivePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.accent + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  effectivePillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Colors.accent,
+  },
+  qualityOptionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  qualityChip: {
+    flex: 1,
+    backgroundColor: Colors.whiteAlpha05,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.whiteAlpha05,
+  },
+  qualityChipActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  qualityChipTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primaryText,
+    marginBottom: 2,
+  },
+  qualityChipTitleActive: {
+    color: Colors.black,
+  },
+  qualityChipDesc: {
+    fontSize: 10,
+    color: Colors.secondaryText,
+  },
+  qualityChipDescActive: {
+    color: 'rgba(0, 0, 0, 0.7)',
+    fontWeight: '600',
   },
 });

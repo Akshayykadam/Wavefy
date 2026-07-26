@@ -1,26 +1,26 @@
 export interface Country {
   code: string;
   name: string;
-  flag: string;
+  badge: string;
 }
 
 export const COUNTRIES: Country[] = [
-  { code: 'us', name: 'United States', flag: '🇺🇸' },
-  { code: 'in', name: 'India', flag: '🇮🇳' },
-  { code: 'gb', name: 'United Kingdom', flag: '🇬🇧' },
-  { code: 'ca', name: 'Canada', flag: '🇨🇦' },
-  { code: 'au', name: 'Australia', flag: '🇦🇺' },
-  { code: 'de', name: 'Germany', flag: '🇩🇪' },
-  { code: 'fr', name: 'France', flag: '🇫🇷' },
-  { code: 'jp', name: 'Japan', flag: '🇯🇵' },
-  { code: 'br', name: 'Brazil', flag: '🇧🇷' },
-  { code: 'mx', name: 'Mexico', flag: '🇲🇽' },
-  { code: 'es', name: 'Spain', flag: '🇪🇸' },
-  { code: 'it', name: 'Italy', flag: '🇮🇹' },
-  { code: 'kr', name: 'South Korea', flag: '🇰🇷' },
-  { code: 'nl', name: 'Netherlands', flag: '🇳🇱' },
-  { code: 'se', name: 'Sweden', flag: '🇸🇪' },
-  { code: 'ae', name: 'UAE', flag: '🇦🇪' },
-  { code: 'sg', name: 'Singapore', flag: '🇸🇬' },
-  { code: 'za', name: 'South Africa', flag: '🇿🇦' },
+  { code: 'us', name: 'United States', badge: 'US' },
+  { code: 'in', name: 'India', badge: 'IN' },
+  { code: 'gb', name: 'United Kingdom', badge: 'GB' },
+  { code: 'ca', name: 'Canada', badge: 'CA' },
+  { code: 'au', name: 'Australia', badge: 'AU' },
+  { code: 'de', name: 'Germany', badge: 'DE' },
+  { code: 'fr', name: 'France', badge: 'FR' },
+  { code: 'jp', name: 'Japan', badge: 'JP' },
+  { code: 'br', name: 'Brazil', badge: 'BR' },
+  { code: 'mx', name: 'Mexico', badge: 'MX' },
+  { code: 'es', name: 'Spain', badge: 'ES' },
+  { code: 'it', name: 'Italy', badge: 'IT' },
+  { code: 'kr', name: 'South Korea', badge: 'KR' },
+  { code: 'nl', name: 'Netherlands', badge: 'NL' },
+  { code: 'se', name: 'Sweden', badge: 'SE' },
+  { code: 'ae', name: 'UAE', badge: 'AE' },
+  { code: 'sg', name: 'Singapore', badge: 'SG' },
+  { code: 'za', name: 'South Africa', badge: 'ZA' },
 ];

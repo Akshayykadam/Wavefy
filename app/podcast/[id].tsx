@@ -23,7 +23,9 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { useFollowedPodcasts } from "@/contexts/FollowedPodcastsContext";
 import { useDownloads } from "@/contexts/DownloadContext";
 import { useNetwork } from "@/contexts/NetworkContext";
+import { getOptimizedArtwork } from "@/utils/image";
 import SkeletonLoader from "@/components/SkeletonLoader";
+import RecommendedPodcasts from "@/components/RecommendedPodcasts";
 
 const { width } = Dimensions.get("window");
 
@@ -77,9 +79,11 @@ const MemoizedEpisodeRow = React.memo(({
     >
       {/* Thumbnail */}
       <Image
-        source={{ uri: episode.artwork || podcast.artworkUrl600 }}
+        source={{ uri: getOptimizedArtwork(episode.artwork || podcast.artworkUrl600, 160) }}
         style={styles.episodeThumb}
         contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
       />
 
       {/* Info block */}
@@ -161,9 +165,15 @@ export default function PodcastDetailScreen() {
         throw new Error("Offline");
       }
 
-      const response = await fetch(`https://itunes.apple.com/lookup?id=${id}`);
-      const data = await response.json();
-      return data.results[0] as Podcast;
+      try {
+        const response = await fetch(`https://itunes.apple.com/lookup?id=${id}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        return (data.results?.[0] || null) as Podcast;
+      } catch (e) {
+        console.error('Error fetching podcast details:', e);
+        return null;
+      }
     },
     enabled: !!id,
   });
@@ -423,6 +433,16 @@ export default function PodcastDetailScreen() {
             </>
           }
           renderItem={renderEpisodeItem}
+          ListFooterComponent={
+            <View>
+              <RecommendedPodcasts
+                genre={podcast.primaryGenreName}
+                artistName={podcast.artistName}
+                currentCollectionId={podcast.collectionId}
+                title={`More from ${podcast.artistName}`}
+              />
+            </View>
+          }
         />
       </SafeAreaView>
     </View>

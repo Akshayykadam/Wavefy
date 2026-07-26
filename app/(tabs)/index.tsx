@@ -21,6 +21,7 @@ import SkeletonLoader from "@/components/SkeletonLoader";
 import ContinueListeningCard from "@/components/ContinueListeningCard";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useNetwork } from "@/contexts/NetworkContext";
+import { getOptimizedArtwork } from "@/utils/image";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.42;
@@ -36,21 +37,33 @@ const MOOD_CATEGORIES: Record<string, string[]> = {
 };
 
 const fetchFeaturedPodcasts = async (mood: string): Promise<Podcast[]> => {
-  const genres = MOOD_CATEGORIES[mood] || ["Technology", "Comedy", "News", "True Crime", "Business"];
-  const randomGenre = genres[Math.floor(Math.random() * genres.length)];
-  const response = await fetch(
-    `https://itunes.apple.com/search?term=${randomGenre}&media=podcast&limit=10`
-  );
-  const data = await response.json();
-  return data.results;
+  try {
+    const genres = MOOD_CATEGORIES[mood] || ["Technology", "Comedy", "News", "True Crime", "Business"];
+    const randomGenre = genres[Math.floor(Math.random() * genres.length)];
+    const response = await fetch(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(randomGenre)}&media=podcast&limit=10`
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.results || [];
+  } catch (e) {
+    console.error('Error fetching featured podcasts:', e);
+    return [];
+  }
 };
 
 const fetchPodcastsByCategory = async (category: string): Promise<Podcast[]> => {
-  const response = await fetch(
-    `https://itunes.apple.com/search?term=${category}&media=podcast&limit=6`
-  );
-  const data = await response.json();
-  return data.results;
+  try {
+    const response = await fetch(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(category)}&media=podcast&limit=6`
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.results || [];
+  } catch (e) {
+    console.error('Error fetching podcasts by category:', e);
+    return [];
+  }
 };
 
 const getGreeting = () => {
@@ -127,9 +140,11 @@ export default function HomeScreen() {
       }}
     >
       <Image
-        source={{ uri: podcast.artworkUrl600 }}
+        source={{ uri: getOptimizedArtwork(podcast.artworkUrl600, 160) }}
         style={styles.artwork}
         contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
       />
       <Text style={styles.podcastName} numberOfLines={2}>
         {podcast.collectionName}

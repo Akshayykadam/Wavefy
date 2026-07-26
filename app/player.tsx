@@ -51,6 +51,7 @@ import WaveformSeekBar from "@/components/WaveformSeekBar";
 import ChapterList from "@/components/ChapterList";
 import ShowNotesSheet from "@/components/ShowNotesSheet";
 import { usePlaylist } from "@/contexts/PlaylistContext";
+import RecommendedPodcasts from "@/components/RecommendedPodcasts";
 
 const { width } = Dimensions.get("window");
 
@@ -166,12 +167,15 @@ export default function PlayerScreen() {
   // Description LayoutAnimation logic removed as we use ShowNotesSheet now
 
   const handleBack = () => {
-    if (router.canDismiss()) {
-      router.dismiss();
-    } else if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/(tabs)");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/(tabs)" as any);
+      }
+    } catch (e) {
+      router.replace("/(tabs)" as any);
     }
   };
 
@@ -204,7 +208,11 @@ export default function PlayerScreen() {
       <View style={styles.container}>
         <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
           <View style={styles.header}>
-            <Pressable onPress={handleBack}>
+            <Pressable
+              onPress={handleBack}
+              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              style={({ pressed }) => [styles.headerButton, pressed && { opacity: 0.6, transform: [{ scale: 0.92 }] }]}
+            >
               <ChevronDown color={Colors.primaryText} size={32} />
             </Pressable>
           </View>
@@ -236,7 +244,11 @@ export default function PlayerScreen() {
       />
       <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
         <View style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.headerButton}>
+          <Pressable
+            onPress={handleBack}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            style={({ pressed }) => [styles.headerButton, pressed && { opacity: 0.6, transform: [{ scale: 0.92 }] }]}
+          >
             <ChevronDown color={Colors.primaryText} size={32} />
           </Pressable>
 
@@ -452,6 +464,15 @@ export default function PlayerScreen() {
               </Text>
             </Pressable>
           ) : null}
+
+          {currentPodcast && (
+            <RecommendedPodcasts
+              genre={currentPodcast.primaryGenreName}
+              artistName={currentPodcast.artistName}
+              currentCollectionId={currentPodcast.collectionId}
+              title="More Shows Like This"
+            />
+          )}
         </ScrollView>
       </SafeAreaView>
 

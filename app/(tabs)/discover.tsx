@@ -13,25 +13,43 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { TrendingUp, Star, Flame, WifiOff, Globe, Check, X } from 'lucide-react-native';
+import { TrendingUp, Star, Flame, WifiOff, Globe, Check, X, Play, Radio, Tag } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
-import { Podcast } from '@/types/podcast';
+import { Podcast, Episode } from '@/types/podcast';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import { useNetwork } from '@/contexts/NetworkContext';
+import { usePlayer } from '@/contexts/PlayerContext';
 import { COUNTRIES, Country } from '@/constants/countries';
+import { getOptimizedArtwork } from '@/utils/image';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.42;
 
 const COUNTRY_STORAGE_KEY = '@castbee_user_country';
 
-// Fetch top podcasts from Apple RSS feed by country code
-const fetchTopPodcasts = async (limit: number = 25, countryCode: string = 'us'): Promise<Podcast[]> => {
+export const GENRE_IDS = [
+  { id: 0, name: 'All' },
+  { id: 1321, name: 'Business' },
+  { id: 1303, name: 'Comedy' },
+  { id: 1311, name: 'News' },
+  { id: 1315, name: 'Science' },
+  { id: 1318, name: 'Sports' },
+  { id: 1489, name: 'True Crime' },
+  { id: 1488, name: 'History' },
+];
+
+// Fetch top podcasts from Apple RSS feed by country code & optional genre ID
+const fetchTopPodcasts = async (
+  limit: number = 25,
+  countryCode: string = 'us',
+  genreId: number = 0
+): Promise<Podcast[]> => {
   try {
+    const genreParam = genreId > 0 ? `/genre=${genreId}` : '';
     const response = await fetch(
-      `https://itunes.apple.com/${countryCode.toLowerCase()}/rss/toppodcasts/limit=${limit}/json`
+      `https://itunes.apple.com/${countryCode.toLowerCase()}/rss/toppodcasts/limit=${limit}${genreParam}/json`
     );
     const data = await response.json();
     const entries = data?.feed?.entry || [];
@@ -54,6 +72,36 @@ const fetchTopPodcasts = async (limit: number = 25, countryCode: string = 'us'):
   }
 };
 
+// Fetch top audio episodes from Apple RSS feed
+const fetchTopEpisodes = async (
+  limit: number = 15,
+  countryCode: string = 'us'
+): Promise<any[]> => {
+  try {
+    const response = await fetch(
+      `https://itunes.apple.com/${countryCode.toLowerCase()}/rss/topaudioepisodes/limit=${limit}/json`
+    );
+    const data = await response.json();
+    const entries = data?.feed?.entry || [];
+
+    return entries.map((entry: any, idx: number) => ({
+      id: String(entry.id?.attributes?.['im:id'] || idx),
+      title: entry['im:name']?.label || 'Trending Episode',
+      description: entry.summary?.label || entry['im:collection']?.['im:name']?.label || '',
+      audioUrl: entry.link?.[1]?.attributes?.href || entry.link?.attributes?.href || '',
+      pubDate: entry['im:releaseDate']?.label || '',
+      duration: 1800,
+      artwork: entry['im:image']?.[2]?.label || entry['im:image']?.[1]?.label || '',
+      podcastTitle: entry['im:collection']?.['im:name']?.label || '',
+      artistName: entry['im:artist']?.label || '',
+      podcastId: parseInt(entry['im:collection']?.id?.attributes?.['im:id'] || '0'),
+    }));
+  } catch (e) {
+    console.error('Error fetching top episodes:', e);
+    return [];
+  }
+};
+
 const fetchByCategory = async (genre: string): Promise<Podcast[]> => {
   const response = await fetch(
     `https://itunes.apple.com/search?term=${genre}&media=podcast&limit=10`
@@ -72,7 +120,9 @@ const getRankColor = (index: number) => {
 export default function DiscoverScreen() {
   const router = useRouter();
   const { isOffline } = useNetwork();
+  const { playEpisode } = usePlayer();
   const [selectedCountry, setSelectedCountry] = useState<string>('us');
+  const [selectedGenreId, setSelectedGenreId] = useState<number>(0);
   const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
 
   useEffect(() => {
@@ -93,8 +143,15 @@ export default function DiscoverScreen() {
   const currentCountryObj = COUNTRIES.find((c) => c.code === selectedCountry) || COUNTRIES[0];
 
   const { data: topPodcasts = [], isLoading: topLoading } = useQuery({
-    queryKey: ['top-podcasts', selectedCountry],
-    queryFn: () => fetchTopPodcasts(25, selectedCountry),
+    queryKey: ['top-podcasts', selectedCountry, selectedGenreId],
+    queryFn: () => fetchTopPodcasts(25, selectedCountry, selectedGenreId),
+    staleTime: 1000 * 60 * 30,
+    enabled: !isOffline,
+  });
+
+  const { data: topEpisodes = [], isLoading: episodesLoading } = useQuery({
+    queryKey: ['top-episodes', selectedCountry],
+    queryFn: () => fetchTopEpisodes(15, selectedCountry),
     staleTime: 1000 * 60 * 30,
     enabled: !isOffline,
   });
@@ -111,6 +168,34 @@ export default function DiscoverScreen() {
     router.push(`/podcast/${id}` as any);
   };
 
+  const handlePlayTrendingEpisode = (ep: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const episode: Episode = {
+      id: ep.id,
+      title: ep.title,
+      description: ep.description,
+      audioUrl: ep.audioUrl,
+      pubDate: ep.pubDate,
+      duration: ep.duration,
+      artwork: ep.artwork,
+      podcastTitle: ep.podcastTitle,
+      artistName: ep.artistName,
+    };
+    const podcast: Podcast = {
+      collectionId: ep.podcastId || 0,
+      collectionName: ep.podcastTitle || 'Podcast',
+      artistName: ep.artistName || '',
+      artworkUrl600: ep.artwork,
+      artworkUrl100: ep.artwork,
+      feedUrl: '',
+      trackCount: 0,
+      releaseDate: '',
+      primaryGenreName: '',
+      collectionViewUrl: '',
+    };
+    playEpisode(episode, podcast);
+  };
+
   const renderTrendingCard = (podcast: Podcast) => (
     <Pressable
       key={podcast.collectionId}
@@ -118,10 +203,11 @@ export default function DiscoverScreen() {
       onPress={() => navigatePodcast(podcast.collectionId)}
     >
       <Image
-        source={{ uri: podcast.artworkUrl600 }}
+        source={{ uri: getOptimizedArtwork(podcast.artworkUrl600, 160) }}
         style={styles.trendArtwork}
         contentFit="cover"
-        transition={200}
+        cachePolicy="memory-disk"
+        transition={150}
       />
       <Text style={styles.trendTitle} numberOfLines={2}>{podcast.collectionName}</Text>
       <Text style={styles.trendArtist} numberOfLines={1}>{podcast.artistName}</Text>
@@ -142,10 +228,11 @@ export default function DiscoverScreen() {
         {index + 1}
       </Text>
       <Image
-        source={{ uri: podcast.artworkUrl600 || podcast.artworkUrl100 }}
+        source={{ uri: getOptimizedArtwork(podcast.artworkUrl600 || podcast.artworkUrl100, 160) }}
         style={[styles.chartArtwork, index < 3 && styles.chartArtworkTop3]}
         contentFit="cover"
-        transition={200}
+        cachePolicy="memory-disk"
+        transition={150}
       />
       <View style={styles.chartInfo}>
         <Text style={styles.chartTitle} numberOfLines={1}>{podcast.collectionName}</Text>
@@ -204,7 +291,7 @@ export default function DiscoverScreen() {
                 onPress={() => setIsCountryModalVisible(true)}
               >
                 <Text style={styles.changeCountryBtnText}>
-                  {currentCountryObj.flag} {currentCountryObj.name}
+                  {currentCountryObj.badge} • {currentCountryObj.name}
                 </Text>
               </Pressable>
             </View>
@@ -225,7 +312,14 @@ export default function DiscoverScreen() {
                     ]}
                     onPress={() => handleSelectCountry(c.code)}
                   >
-                    <Text style={styles.countryPillFlag}>{c.flag}</Text>
+                    <Text
+                      style={[
+                        styles.countryPillBadgeText,
+                        isSelected && styles.countryPillBadgeTextActive,
+                      ]}
+                    >
+                      {c.badge}
+                    </Text>
                     <Text
                       style={[
                         styles.countryPillText,
@@ -270,7 +364,7 @@ export default function DiscoverScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Flame color={Colors.accent} size={18} />
-              <Text style={styles.sectionTitle}>Trending in {currentCountryObj.name}</Text>
+              <Text style={styles.sectionTitle}>Trending Shows in {currentCountryObj.name}</Text>
             </View>
             {topLoading ? renderSkeletonCards() : (
               <ScrollView
@@ -285,12 +379,80 @@ export default function DiscoverScreen() {
             )}
           </View>
 
+          {/* Top Audio Episodes of the Day */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Radio color={Colors.accent} size={18} />
+              <Text style={styles.sectionTitle}>Top Episodes ({currentCountryObj.badge})</Text>
+            </View>
+            {episodesLoading ? renderSkeletonCards() : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+                snapToInterval={CARD_WIDTH + 12}
+                decelerationRate="fast"
+              >
+                {topEpisodes.slice(0, 10).map((ep) => (
+                  <Pressable
+                    key={ep.id}
+                    style={({ pressed }) => [styles.trendCard, pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] }]}
+                    onPress={() => handlePlayTrendingEpisode(ep)}
+                  >
+                    <View style={{ position: 'relative' }}>
+                      <Image
+                        source={{ uri: ep.artwork }}
+                        style={styles.trendArtwork}
+                        contentFit="cover"
+                        transition={200}
+                      />
+                      <View style={styles.playOverlayBadge}>
+                        <Play color="#fff" size={12} fill="#fff" />
+                      </View>
+                    </View>
+                    <Text style={styles.trendTitle} numberOfLines={2}>{ep.title}</Text>
+                    <Text style={styles.trendArtist} numberOfLines={1}>{ep.podcastTitle || ep.artistName}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
           {/* Top Charts */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <TrendingUp color={Colors.accent} size={18} />
-              <Text style={styles.sectionTitle}>Top Charts ({currentCountryObj.flag})</Text>
+              <Text style={styles.sectionTitle}>Top Charts ({currentCountryObj.badge})</Text>
             </View>
+
+            {/* Official Genre Filter Pills */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.horizontalScroll, { marginBottom: 14 }]}
+            >
+              {GENRE_IDS.map((g) => {
+                const isSelected = selectedGenreId === g.id;
+                return (
+                  <Pressable
+                    key={g.id}
+                    style={[
+                      styles.genrePill,
+                      isSelected && styles.genrePillActive,
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedGenreId(g.id);
+                    }}
+                  >
+                    <Tag size={12} color={isSelected ? Colors.black : Colors.secondaryText} />
+                    <Text style={[styles.genrePillText, isSelected && styles.genrePillTextActive]}>
+                      {g.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
             {topLoading ? (
               <View style={{ paddingHorizontal: 20 }}>
                 {[1, 2, 3, 4, 5].map(i => (
@@ -351,7 +513,9 @@ export default function DiscoverScreen() {
                       ]}
                       onPress={() => handleSelectCountry(item.code)}
                     >
-                      <Text style={styles.countryOptionFlag}>{item.flag}</Text>
+                      <View style={styles.countryOptionBadge}>
+                        <Text style={styles.countryOptionBadgeText}>{item.badge}</Text>
+                      </View>
                       <Text style={styles.countryOptionName}>{item.name}</Text>
                       {isSelected && <Check color={Colors.accent} size={20} />}
                     </Pressable>
@@ -572,8 +736,18 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     borderColor: Colors.accent,
   },
-  countryPillFlag: {
-    fontSize: 14,
+  countryPillBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.accent,
+    backgroundColor: 'rgba(29, 185, 84, 0.12)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  countryPillBadgeTextActive: {
+    color: Colors.black,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
   },
   countryPillText: {
     fontSize: 13,
@@ -641,13 +815,63 @@ const styles = StyleSheet.create({
   countryOptionSelected: {
     backgroundColor: Colors.whiteAlpha05,
   },
-  countryOptionFlag: {
-    fontSize: 22,
+  countryOptionBadge: {
+    width: 28,
+    height: 20,
+    borderRadius: 5,
+    backgroundColor: 'rgba(29, 185, 84, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countryOptionBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.accent,
   },
   countryOptionName: {
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
     color: Colors.primaryText,
+  },
+  playOverlayBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  genrePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.whiteAlpha05,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 18,
+    marginRight: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.whiteAlpha05,
+  },
+  genrePillActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  genrePillText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+  },
+  genrePillTextActive: {
+    color: Colors.black,
   },
 });

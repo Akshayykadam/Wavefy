@@ -10,6 +10,7 @@ import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { PlaylistProvider } from "@/contexts/PlaylistContext";
 import { NetworkProvider } from "@/contexts/NetworkContext";
+import { AudioQualityProvider } from "@/contexts/AudioQualityContext";
 import MiniPlayer from "@/components/MiniPlayer";
 import OfflineBanner from "@/components/OfflineBanner";
 import { DownloadProvider } from "@/contexts/DownloadContext";
@@ -116,21 +117,23 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <NetworkProvider>
-          <FollowedPodcastsProvider>
-            <LikedEpisodesProvider>
-              <DownloadProvider>
-                <PlayerProvider>
-                  <NotificationProvider>
-                    <PlaylistProvider>
-                      <RootLayoutNav />
-                      <MiniPlayer />
-                      <OfflineBanner />
-                    </PlaylistProvider>
-                  </NotificationProvider>
-                </PlayerProvider>
-              </DownloadProvider>
-            </LikedEpisodesProvider>
-          </FollowedPodcastsProvider>
+          <AudioQualityProvider>
+            <FollowedPodcastsProvider>
+              <LikedEpisodesProvider>
+                <DownloadProvider>
+                  <PlayerProvider>
+                    <NotificationProvider>
+                      <PlaylistProvider>
+                        <RootLayoutNav />
+                        <MiniPlayer />
+                        <OfflineBanner />
+                      </PlaylistProvider>
+                    </NotificationProvider>
+                  </PlayerProvider>
+                </DownloadProvider>
+              </LikedEpisodesProvider>
+            </FollowedPodcastsProvider>
+          </AudioQualityProvider>
         </NetworkProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
