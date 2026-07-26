@@ -258,7 +258,7 @@ export default function PlayerScreen() {
             <ChevronDown color={Colors.primaryText} size={32} />
           </Pressable>
 
-          <Text style={styles.headerTitle} numberOfLines={1} textBreakStrategy="simple">
+          <Text style={styles.headerTitle} pointerEvents="none" numberOfLines={1} textBreakStrategy="simple">
             Now Playing
           </Text>
 
@@ -747,16 +747,19 @@ const styles = StyleSheet.create({
     fontWeight: "600" as const,
     color: Colors.primaryText,
     position: 'absolute',
-    left: 0,
-    right: 0,
+    left: 65,
+    right: 65,
     textAlign: "center",
+    pointerEvents: 'none',
   },
   headerButton: {
     padding: 8,
+    zIndex: 10,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    zIndex: 10,
   },
   content: {
     flex: 1,
