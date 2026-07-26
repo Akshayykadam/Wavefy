@@ -30,62 +30,14 @@ const GRID_PADDING = 20;
 const TILE_WIDTH = (width - GRID_PADDING * 2 - GRID_GAP) / 2;
 
 const GENRE_TILES = [
-  {
-    name: "Technology",
-    colors: ["#161616", "#250a0a"] as const,
-    accentColor: Colors.accent,
-    iconBg: "rgba(255, 59, 48, 0.12)",
-    Icon: Cpu,
-  },
-  {
-    name: "True Crime",
-    colors: ["#161616", "#250a0a"] as const,
-    accentColor: Colors.accent,
-    iconBg: "rgba(255, 59, 48, 0.12)",
-    Icon: Crosshair,
-  },
-  {
-    name: "Comedy",
-    colors: ["#161616", "#250a0a"] as const,
-    accentColor: Colors.accent,
-    iconBg: "rgba(255, 59, 48, 0.12)",
-    Icon: Laugh,
-  },
-  {
-    name: "News",
-    colors: ["#161616", "#250a0a"] as const,
-    accentColor: Colors.accent,
-    iconBg: "rgba(255, 59, 48, 0.12)",
-    Icon: Newspaper,
-  },
-  {
-    name: "Business",
-    colors: ["#161616", "#250a0a"] as const,
-    accentColor: Colors.accent,
-    iconBg: "rgba(255, 59, 48, 0.12)",
-    Icon: Briefcase,
-  },
-  {
-    name: "Sports",
-    colors: ["#161616", "#250a0a"] as const,
-    accentColor: Colors.accent,
-    iconBg: "rgba(255, 59, 48, 0.12)",
-    Icon: Trophy,
-  },
-  {
-    name: "Health",
-    colors: ["#161616", "#250a0a"] as const,
-    accentColor: Colors.accent,
-    iconBg: "rgba(255, 59, 48, 0.12)",
-    Icon: HeartPulse,
-  },
-  {
-    name: "Science",
-    colors: ["#161616", "#250a0a"] as const,
-    accentColor: Colors.accent,
-    iconBg: "rgba(255, 59, 48, 0.12)",
-    Icon: FlaskConical,
-  },
+  { name: "Technology", Icon: Cpu },
+  { name: "True Crime", Icon: Crosshair },
+  { name: "Comedy", Icon: Laugh },
+  { name: "News", Icon: Newspaper },
+  { name: "Business", Icon: Briefcase },
+  { name: "Sports", Icon: Trophy },
+  { name: "Health", Icon: HeartPulse },
+  { name: "Science", Icon: FlaskConical },
 ];
 
 export default function SearchScreen() {
@@ -434,7 +386,7 @@ export default function SearchScreen() {
               </View>
             )}
 
-            {/* Genre Grid */}
+            {/* Minimal Browse Categories */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Browse Categories</Text>
               <View style={styles.genreGrid}>
@@ -443,29 +395,19 @@ export default function SearchScreen() {
                     key={genre.name}
                     style={({ pressed }) => [
                       styles.genreTile,
-                      pressed && { opacity: 0.9, transform: [{ scale: 0.96 }] }
+                      pressed && styles.genreTilePressed,
                     ]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       handleSearch(genre.name);
                     }}
                   >
-                    <LinearGradient
-                      colors={[...genre.colors]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.genreGradient}
-                    >
-                      <View style={styles.genreTopRow}>
-                        <View style={[styles.iconContainer, { backgroundColor: genre.iconBg, borderColor: `${genre.accentColor}33` }]}>
-                          <genre.Icon color={genre.accentColor} size={18} />
-                        </View>
-                      </View>
-                      <View style={styles.genreBottomRow}>
-                        <Text style={[styles.genreSubText, { color: `${genre.accentColor}bb` }]}>EXPLORE</Text>
-                        <Text style={styles.genreText}>{genre.name}</Text>
-                      </View>
-                    </LinearGradient>
+                    <View style={styles.iconContainer}>
+                      <genre.Icon color={Colors.accent} size={18} />
+                    </View>
+                    <Text style={styles.genreText} numberOfLines={1}>
+                      {genre.name}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -613,43 +555,34 @@ const styles = StyleSheet.create({
   },
   genreTile: {
     width: TILE_WIDTH,
-    height: 104,
-    borderRadius: 18,
-    overflow: 'hidden',
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255, 59, 48, 0.15)',
-  },
-  genreGradient: {
-    flex: 1,
-    justifyContent: 'space-between',
-    padding: 14,
-  },
-  genreTopRow: {
+    borderColor: Colors.border,
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  genreTilePressed: {
+    backgroundColor: Colors.surfaceLight,
+    borderColor: Colors.accentGlow20,
+    transform: [{ scale: 0.98 }],
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 59, 48, 0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-  },
-  genreBottomRow: {
-    justifyContent: 'flex-end',
-  },
-  genreSubText: {
-    fontSize: 9,
-    fontWeight: '800' as const,
-    letterSpacing: 1.5,
-    marginBottom: 4,
   },
   genreText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#ffffff',
-    letterSpacing: -0.2,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.primaryText,
   },
   resultsContainer: {
     paddingHorizontal: 20,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,13 +7,11 @@ import {
   Pressable,
   Switch,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
-import * as IntentLauncher from "expo-intent-launcher";
 import * as Haptics from "expo-haptics";
 import {
   ArrowLeft,
@@ -21,30 +19,14 @@ import {
   HardDrive,
   Trash2,
   Info,
-  Github,
   ChevronRight,
-  Music,
-  Download,
-  AlertTriangle,
-  RefreshCw,
-  CheckCircle,
-  Wifi,
   Zap,
-  Signal,
 } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useDownloads } from "@/contexts/DownloadContext";
 import { useAudioQuality } from "@/contexts/AudioQualityContext";
 import pkg from "../package.json";
-
-interface UpdateInfo {
-  version: string;
-  notes: string;
-  apkUrl: string;
-}
-
-type UpdateStatus = 'idle' | 'checking' | 'available' | 'up-to-date' | 'downloading' | 'downloaded' | 'error';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -72,134 +54,6 @@ export default function SettingsScreen() {
 
   // Cache state
   const [cacheSize, setCacheSize] = useState("0 B");
-
-  // In-App update states
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle');
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState(0);
-
-  // Load Wi-Fi preferences on mount
-  useEffect(() => {
-    (async () => {
-      // Load wifi preferences from file system or AsyncStorage
-      calculateCacheSize();
-    })();
-  }, [downloads]);
-
-  // Version comparison helper: v1 > v2 returns 1, v1 < v2 returns -1, v1 == v2 returns 0
-  const compareVersions = (v1: string, v2: string) => {
-    const parts1 = v1.replace(/^v/, '').split('.').map(Number);
-    const parts2 = v2.replace(/^v/, '').split('.').map(Number);
-    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-      const p1 = parts1[i] || 0;
-      const p2 = parts2[i] || 0;
-      if (p1 > p2) return 1;
-      if (p1 < p2) return -1;
-    }
-    return 0;
-  };
-
-  // Check for updates
-  const checkUpdates = async () => {
-    setUpdateStatus('checking');
-    try {
-      // Fetch latest release from GitHub API
-      const response = await fetch('https://api.github.com/repos/Akshayykadam/Wavefy/releases/latest');
-      if (!response.ok) throw new Error('Failed to fetch release');
-      const data = await response.json();
-      
-      const latestVersion = data.tag_name;
-      const currentVersion = `v${pkg.version}`;
-      
-      const isNewer = compareVersions(latestVersion, currentVersion) > 0;
-      
-      if (isNewer) {
-        // Find APK asset
-        const apkAsset = data.assets?.find((asset: any) => asset.name.endsWith('.apk'));
-        if (apkAsset) {
-          setUpdateInfo({
-            version: latestVersion,
-            notes: data.body || 'No release notes provided.',
-            apkUrl: apkAsset.browser_download_url,
-          });
-          setUpdateStatus('available');
-        } else {
-          setUpdateStatus('up-to-date');
-        }
-      } else {
-        setUpdateStatus('up-to-date');
-      }
-    } catch (error) {
-      console.error('Update check failed:', error);
-      setUpdateStatus('error');
-    }
-  };
-
-  // Download update APK
-  const downloadUpdate = async () => {
-    if (!updateInfo) return;
-    try {
-      setUpdateStatus('downloading');
-      setDownloadProgress(0);
-      
-      const localUri = FileSystem.documentDirectory + 'update.apk';
-      
-      // Delete existing APK file if present
-      const fileInfo = await FileSystem.getInfoAsync(localUri);
-      if (fileInfo.exists) {
-        await FileSystem.deleteAsync(localUri);
-      }
-      
-      const downloadResumable = FileSystem.createDownloadResumable(
-        updateInfo.apkUrl,
-        localUri,
-        {},
-        (downloadProgress) => {
-          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-          setDownloadProgress(progress);
-        }
-      );
-      
-      const result = await downloadResumable.downloadAsync();
-      if (result && result.uri) {
-        setUpdateStatus('downloaded');
-      } else {
-        setUpdateStatus('error');
-      }
-    } catch (error) {
-      console.error('Download failed:', error);
-      setUpdateStatus('error');
-    }
-  };
-
-  // Trigger package installer to install the update
-  const installUpdate = async () => {
-    try {
-      const localUri = FileSystem.documentDirectory + 'update.apk';
-      const fileInfo = await FileSystem.getInfoAsync(localUri);
-      if (!fileInfo.exists) {
-        Alert.alert('Error', 'Update file not found. Please download again.');
-        setUpdateStatus('available');
-        return;
-      }
-      
-      // Get standard content provider URI for Android 7.0+
-      const contentUri = await FileSystem.getContentUriAsync(localUri);
-      
-      // Launch standard Android Package Installer Intent
-      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-        data: contentUri,
-        type: 'application/vnd.android.package-archive',
-        flags: 1, // Intent.FLAG_GRANT_READ_URI_PERMISSION
-      });
-    } catch (error) {
-      console.error('Installation trigger failed:', error);
-      Alert.alert(
-        'Installation failed',
-        'Could not launch installer. Ensure you have allowed installing unknown apps from Wavefy in Android Settings.'
-      );
-    }
-  };
 
   // Calculate local downloads folder size
   const calculateCacheSize = async () => {
@@ -306,90 +160,6 @@ export default function SettingsScreen() {
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
           
-          {/* In-App Updater Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>App Updates</Text>
-            <View style={styles.card}>
-              {updateStatus === 'idle' && (
-                <View style={styles.updateRow}>
-                  <View style={styles.updateLeft}>
-                    <Text style={styles.settingText}>Check for Updates</Text>
-                    <Text style={styles.settingDescription}>Current version: v{pkg.version}</Text>
-                  </View>
-                  <Pressable style={styles.updateButton} onPress={checkUpdates}>
-                    <Text style={styles.updateButtonText}>Check</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {updateStatus === 'checking' && (
-                <View style={styles.updateCenter}>
-                  <ActivityIndicator size="small" color={Colors.accent} style={{ marginBottom: 8 }} />
-                  <Text style={styles.settingDescription}>Checking GitHub for updates...</Text>
-                </View>
-              )}
-
-              {updateStatus === 'up-to-date' && (
-                <View style={styles.updateCenter}>
-                  <CheckCircle color={Colors.success || "#34C759"} size={28} style={{ marginBottom: 6 }} />
-                  <Text style={styles.settingText}>You are up to date!</Text>
-                  <Text style={styles.settingDescription}>Running Wavefy v{pkg.version}</Text>
-                  <Pressable style={[styles.updateButton, { marginTop: 10 }]} onPress={checkUpdates}>
-                    <Text style={styles.updateButtonText}>Check Again</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {updateStatus === 'available' && updateInfo && (
-                <View style={styles.updateDetails}>
-                  <View style={styles.updateHeaderRow}>
-                    <AlertTriangle color={Colors.accent} size={20} />
-                    <Text style={styles.updateTitle}>New Update Available ({updateInfo.version})</Text>
-                  </View>
-                  <Text style={styles.changelogTitle}>Changelog:</Text>
-                  <Text style={styles.changelogText} numberOfLines={4}>{updateInfo.notes}</Text>
-                  <Pressable style={styles.downloadButton} onPress={downloadUpdate}>
-                    <Text style={styles.downloadButtonText}>Download Update (APK)</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {updateStatus === 'downloading' && (
-                <View style={styles.updateCenter}>
-                  <ActivityIndicator size="small" color={Colors.accent} style={{ marginBottom: 10 }} />
-                  <Text style={styles.settingText}>Downloading Update...</Text>
-                  <Text style={styles.settingDescription}>{Math.round(downloadProgress * 100)}% Completed</Text>
-                  {/* Progress Bar Container */}
-                  <View style={styles.progressBarBg}>
-                    <View style={[styles.progressBarFill, { width: `${downloadProgress * 100}%` }]} />
-                  </View>
-                </View>
-              )}
-
-              {updateStatus === 'downloaded' && (
-                <View style={styles.updateDetails}>
-                  <CheckCircle color={Colors.success || "#34C759"} size={32} style={{ alignSelf: 'center', marginBottom: 8 }} />
-                  <Text style={[styles.settingText, { alignSelf: 'center', marginBottom: 4 }]}>Download Completed!</Text>
-                  <Text style={[styles.settingDescription, { alignSelf: 'center', marginBottom: 12 }]}>Ready to install the new update file.</Text>
-                  <Pressable style={styles.downloadButton} onPress={installUpdate}>
-                    <Text style={styles.downloadButtonText}>Install Now</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              {updateStatus === 'error' && (
-                <View style={styles.updateCenter}>
-                  <AlertTriangle color="#FF3B30" size={28} style={{ marginBottom: 6 }} />
-                  <Text style={styles.settingText}>Update Check Failed</Text>
-                  <Text style={styles.settingDescription}>Could not connect to GitHub releases.</Text>
-                  <Pressable style={[styles.updateButton, { marginTop: 10 }]} onPress={checkUpdates}>
-                    <Text style={styles.updateButtonText}>Retry</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
-          </View>
-
           {/* Autoplay & Playback Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Autoplay Settings</Text>
@@ -565,20 +335,30 @@ export default function SettingsScreen() {
                   <Text style={styles.settingText}>Offline Audio Files Cache</Text>
                   <Text style={styles.settingDescription}>Storage Used: {cacheSize}</Text>
                 </View>
-                <Pressable style={({ pressed }) => [styles.deleteAction, pressed && { backgroundColor: 'rgba(255, 59, 48, 0.2)' }]} onPress={handleClearCache}>
-                  <Trash2 color="#FF3B30" size={18} />
+                <Pressable
+                  style={({ pressed }) => [styles.deleteAction, pressed && { backgroundColor: 'rgba(255, 59, 48, 0.25)' }]}
+                  onPress={handleClearCache}
+                  hitSlop={8}
+                >
+                  <Trash2 color={Colors.accent} size={18} />
                 </Pressable>
               </View>
 
               <View style={styles.divider} />
 
-              <Pressable style={({ pressed }) => [styles.prefItem, pressed && { backgroundColor: Colors.surfaceLight }]} onPress={handleClearHistory}>
+              <View style={styles.settingRow}>
                 <View style={styles.settingLeft}>
                   <Text style={styles.settingText}>Clear Listening History</Text>
                   <Text style={styles.settingDescription}>Remove all tracked playback progress logs</Text>
                 </View>
-                <Trash2 color={Colors.secondaryText} size={18} />
-              </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.deleteAction, pressed && { backgroundColor: 'rgba(255, 59, 48, 0.25)' }]}
+                  onPress={handleClearHistory}
+                  hitSlop={8}
+                >
+                  <Trash2 color={Colors.accent} size={18} />
+                </Pressable>
+              </View>
             </View>
           </View>
 
@@ -589,7 +369,7 @@ export default function SettingsScreen() {
               <View style={styles.settingRow}>
                 <View style={styles.settingLeft}>
                   <Text style={styles.settingText}>Wavefy App</Text>
-                  <Text style={styles.settingDescription}>Where Stories Buzz. Built with React Native & Expo.</Text>
+                  <Text style={styles.settingDescription}>Listen. Discover. Repeat.</Text>
                 </View>
               </View>
 
@@ -599,18 +379,6 @@ export default function SettingsScreen() {
                 <View style={styles.settingLeft}>
                   <Text style={styles.settingText}>Version</Text>
                   <Text style={styles.settingDescription}>{pkg.version} (Release)</Text>
-                </View>
-              </View>
-
-              <View style={styles.divider} />
-
-              <View style={styles.settingRow}>
-                <View style={styles.settingLeft}>
-                  <Text style={styles.settingText}>Open Source Code</Text>
-                  <Text style={styles.settingDescription}>Feel free to inspect or contribute on GitHub</Text>
-                </View>
-                <View style={styles.iconBg}>
-                  <Github color={Colors.secondaryText} size={18} />
                 </View>
               </View>
             </View>
