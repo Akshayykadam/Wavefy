@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,26 +6,32 @@ import {
   ScrollView,
   Pressable,
   Dimensions,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { TrendingUp, Star, Flame, WifiOff } from 'lucide-react-native';
+import { TrendingUp, Star, Flame, WifiOff, Globe, Check, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
 import { Podcast } from '@/types/podcast';
 import SkeletonLoader from '@/components/SkeletonLoader';
 import { useNetwork } from '@/contexts/NetworkContext';
+import { COUNTRIES, Country } from '@/constants/countries';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.42;
 
-// Fetch top podcasts from Apple RSS feed
-const fetchTopPodcasts = async (limit: number = 25): Promise<Podcast[]> => {
+const COUNTRY_STORAGE_KEY = '@castbee_user_country';
+
+// Fetch top podcasts from Apple RSS feed by country code
+const fetchTopPodcasts = async (limit: number = 25, countryCode: string = 'us'): Promise<Podcast[]> => {
   try {
     const response = await fetch(
-      `https://itunes.apple.com/us/rss/toppodcasts/limit=${limit}/json`
+      `https://itunes.apple.com/${countryCode.toLowerCase()}/rss/toppodcasts/limit=${limit}/json`
     );
     const data = await response.json();
     const entries = data?.feed?.entry || [];
@@ -66,10 +72,29 @@ const getRankColor = (index: number) => {
 export default function DiscoverScreen() {
   const router = useRouter();
   const { isOffline } = useNetwork();
+  const [selectedCountry, setSelectedCountry] = useState<string>('us');
+  const [isCountryModalVisible, setIsCountryModalVisible] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(COUNTRY_STORAGE_KEY).then((saved) => {
+      if (saved) {
+        setSelectedCountry(saved);
+      }
+    });
+  }, []);
+
+  const handleSelectCountry = async (code: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedCountry(code);
+    setIsCountryModalVisible(false);
+    await AsyncStorage.setItem(COUNTRY_STORAGE_KEY, code);
+  };
+
+  const currentCountryObj = COUNTRIES.find((c) => c.code === selectedCountry) || COUNTRIES[0];
 
   const { data: topPodcasts = [], isLoading: topLoading } = useQuery({
-    queryKey: ['top-podcasts'],
-    queryFn: () => fetchTopPodcasts(25),
+    queryKey: ['top-podcasts', selectedCountry],
+    queryFn: () => fetchTopPodcasts(25, selectedCountry),
     staleTime: 1000 * 60 * 30,
     enabled: !isOffline,
   });
@@ -167,7 +192,62 @@ export default function DiscoverScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* Editor's Picks — moved above trending */}
+          {/* Country Selector Pill Bar */}
+          <View style={styles.countryBarSection}>
+            <View style={styles.countryBarHeader}>
+              <View style={styles.countryBarHeaderLeft}>
+                <Globe color={Colors.accent} size={18} />
+                <Text style={styles.countryBarTitle}>Trending Region</Text>
+              </View>
+              <Pressable
+                style={styles.changeCountryBtn}
+                onPress={() => setIsCountryModalVisible(true)}
+              >
+                <Text style={styles.changeCountryBtnText}>
+                  {currentCountryObj.flag} {currentCountryObj.name}
+                </Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.countryPillsScroll}
+            >
+              {COUNTRIES.slice(0, 8).map((c) => {
+                const isSelected = c.code === selectedCountry;
+                return (
+                  <Pressable
+                    key={c.code}
+                    style={[
+                      styles.countryPill,
+                      isSelected && styles.countryPillActive,
+                    ]}
+                    onPress={() => handleSelectCountry(c.code)}
+                  >
+                    <Text style={styles.countryPillFlag}>{c.flag}</Text>
+                    <Text
+                      style={[
+                        styles.countryPillText,
+                        isSelected && styles.countryPillTextActive,
+                      ]}
+                    >
+                      {c.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                style={styles.moreCountriesPill}
+                onPress={() => setIsCountryModalVisible(true)}
+              >
+                <Globe color={Colors.secondaryText} size={14} />
+                <Text style={styles.moreCountriesText}>More...</Text>
+              </Pressable>
+            </ScrollView>
+          </View>
+
+          {/* Editor's Picks */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Star color={Colors.accent} size={18} fill={Colors.accent} />
@@ -190,7 +270,7 @@ export default function DiscoverScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Flame color={Colors.accent} size={18} />
-              <Text style={styles.sectionTitle}>Trending Now</Text>
+              <Text style={styles.sectionTitle}>Trending in {currentCountryObj.name}</Text>
             </View>
             {topLoading ? renderSkeletonCards() : (
               <ScrollView
@@ -209,7 +289,7 @@ export default function DiscoverScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <TrendingUp color={Colors.accent} size={18} />
-              <Text style={styles.sectionTitle}>Top Charts</Text>
+              <Text style={styles.sectionTitle}>Top Charts ({currentCountryObj.flag})</Text>
             </View>
             {topLoading ? (
               <View style={{ paddingHorizontal: 20 }}>
@@ -234,6 +314,54 @@ export default function DiscoverScreen() {
           <View style={{ height: 120 }} />
         </ScrollView>
         )}
+
+        {/* Country Selection Modal */}
+        <Modal
+          visible={isCountryModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsCountryModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Globe color={Colors.accent} size={20} />
+                  <Text style={styles.modalTitle}>Select Country</Text>
+                </View>
+                <Pressable
+                  style={styles.modalCloseBtn}
+                  onPress={() => setIsCountryModalVisible(false)}
+                >
+                  <X color={Colors.primaryText} size={22} />
+                </Pressable>
+              </View>
+
+              <FlatList
+                data={COUNTRIES}
+                keyExtractor={(item) => item.code}
+                renderItem={({ item }) => {
+                  const isSelected = item.code === selectedCountry;
+                  return (
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.countryOption,
+                        isSelected && styles.countryOptionSelected,
+                        pressed && { opacity: 0.7 },
+                      ]}
+                      onPress={() => handleSelectCountry(item.code)}
+                    >
+                      <Text style={styles.countryOptionFlag}>{item.flag}</Text>
+                      <Text style={styles.countryOptionName}>{item.name}</Text>
+                      {isSelected && <Check color={Colors.accent} size={20} />}
+                    </Pressable>
+                  );
+                }}
+                contentContainerStyle={styles.countryListContent}
+              />
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -390,5 +518,136 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     letterSpacing: -0.1,
+  },
+  countryBarSection: {
+    marginTop: 16,
+  },
+  countryBarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  countryBarHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  countryBarTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.primaryText,
+    letterSpacing: -0.2,
+  },
+  changeCountryBtn: {
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.whiteAlpha10,
+  },
+  changeCountryBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primaryText,
+  },
+  countryPillsScroll: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  countryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.whiteAlpha05,
+  },
+  countryPillActive: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  countryPillFlag: {
+    fontSize: 14,
+  },
+  countryPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+  },
+  countryPillTextActive: {
+    color: Colors.black,
+  },
+  moreCountriesPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceLight,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    gap: 6,
+  },
+  moreCountriesText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.secondaryText,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '75%',
+    paddingBottom: 34,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.whiteAlpha05,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.primaryText,
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  countryListContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  countryOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 12,
+  },
+  countryOptionSelected: {
+    backgroundColor: Colors.whiteAlpha05,
+  },
+  countryOptionFlag: {
+    fontSize: 22,
+  },
+  countryOptionName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: Colors.primaryText,
   },
 });
