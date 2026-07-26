@@ -169,13 +169,19 @@ export default function PlayerScreen() {
   const handleBack = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      if (router.canGoBack()) {
+      if (router.canDismiss()) {
+        router.dismissAll();
+      } else if (router.canGoBack()) {
         router.back();
       } else {
         router.replace("/(tabs)" as any);
       }
     } catch (e) {
-      router.replace("/(tabs)" as any);
+      try {
+        router.back();
+      } catch (err) {
+        router.replace("/(tabs)" as any);
+      }
     }
   };
 

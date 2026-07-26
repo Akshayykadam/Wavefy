@@ -76,7 +76,7 @@ export default function MiniPlayer() {
       style={[styles.container, { bottom: bottomPosition }]}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push("/player");
+        router.navigate("/player");
       }}
     >
 
