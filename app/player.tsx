@@ -94,38 +94,28 @@ function PlayerProgressSection({ currentEpisode, seekTo, progress }: PlayerProgr
   const currentPosition = isSeeking ? seekPosition : position;
 
   return (
-    <>
-      <View style={styles.progressContainer}>
-        <WaveformSeekBar
-          progress={duration > 0 ? currentPosition / duration : 0}
-          duration={duration}
-          onSeek={(pos) => {
-            seekTo(pos);
-            setIsSeeking(false);
-          }}
-          onSeekStart={() => {
-            setIsSeeking(true);
-            setSeekPosition(currentPosition);
-          }}
-          onSeekEnd={() => {
-            setIsSeeking(false);
-          }}
-          height={50}
-        />
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>{formatTime(currentPosition)}</Text>
-          <Text style={styles.timeText}>{formatTime(duration)}</Text>
-        </View>
+    <View style={styles.progressContainer}>
+      <WaveformSeekBar
+        progress={duration > 0 ? currentPosition / duration : 0}
+        duration={duration}
+        onSeek={(pos) => {
+          seekTo(pos);
+          setIsSeeking(false);
+        }}
+        onSeekStart={() => {
+          setIsSeeking(true);
+          setSeekPosition(currentPosition);
+        }}
+        onSeekEnd={() => {
+          setIsSeeking(false);
+        }}
+        height={50}
+      />
+      <View style={styles.timeContainer}>
+        <Text style={styles.timeText}>{formatTime(currentPosition)}</Text>
+        <Text style={styles.timeText}>{formatTime(duration)}</Text>
       </View>
-
-      {currentEpisode.chapters && currentEpisode.chapters.length > 0 && (
-        <ChapterList
-          chapters={currentEpisode.chapters}
-          currentPosition={currentPosition}
-          onSeek={seekTo}
-        />
-      )}
-    </>
+    </View>
   );
 }
 
@@ -428,6 +418,14 @@ export default function PlayerScreen() {
             </Pressable>
           </View>
 
+          {currentEpisode.chapters && currentEpisode.chapters.length > 0 && (
+            <ChapterList
+              chapters={currentEpisode.chapters}
+              currentPosition={progress.position * 1000}
+              onSeek={seekTo}
+            />
+          )}
+
           {/* Up Next Preview */}
           {(queue.length > 0 || upNextEpisodes.length > 0) && (
             <Pressable
@@ -507,7 +505,27 @@ export default function PlayerScreen() {
             </Pressable>
           </View>
 
-          <View style={[styles.menuSection, { marginBottom: 24 }]}>
+          <View style={[styles.menuSection, { marginBottom: 24, gap: 12 }]}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionRowButton,
+                { opacity: pressed ? 0.7 : 1 }
+              ]}
+              onPress={() => {
+                setMenuVisible(false);
+                if (currentEpisode) {
+                  addToQueue(currentEpisode);
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }
+              }}
+            >
+              <View style={styles.actionRowIcon}>
+                <ListMusic size={20} color={Colors.black} />
+              </View>
+              <Text style={styles.actionRowText}>Add to Queue</Text>
+              <ChevronRight size={20} color={Colors.secondaryText} />
+            </Pressable>
+
             <Pressable
               style={({ pressed }) => [
                 styles.actionRowButton,

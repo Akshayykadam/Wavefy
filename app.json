@@ -15,7 +15,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.akshaykadam.wavefy",
+      "bundleIdentifier": "com.akshayysk.wavefy",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.akshaykadam.wavefy",
+      "package": "com.akshayysk.wavefy",
       "versionCode": 1,
       "permissions": [
         "RECORD_AUDIO",

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import NetInfo, { NetInfoState, NetInfoCellularGeneration } from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import TrackPlayer from 'react-native-track-player';
+import TrackPlayer, { Capability } from 'react-native-track-player';
 
 export type QualityMode = 'auto' | 'high' | 'medium' | 'low';
 export type EffectiveQuality = 'high' | 'medium' | 'low';
@@ -69,19 +69,28 @@ export const [AudioQualityProvider, useAudioQuality] = createContextHook(() => {
   // Apply track player buffer settings when quality changes
   useEffect(() => {
     try {
-      if (effectiveQuality === 'high') {
-        TrackPlayer.updateOptions({
-          progressUpdateEventInterval: 1,
-        }).catch(() => {});
-      } else if (effectiveQuality === 'medium') {
-        TrackPlayer.updateOptions({
-          progressUpdateEventInterval: 2,
-        }).catch(() => {});
-      } else {
-        TrackPlayer.updateOptions({
-          progressUpdateEventInterval: 3,
-        }).catch(() => {});
-      }
+      const interval = effectiveQuality === 'high' ? 1 : effectiveQuality === 'medium' ? 2 : 3;
+      TrackPlayer.updateOptions({
+        capabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.SeekTo,
+          Capability.JumpForward,
+          Capability.JumpBackward,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+        ],
+        notificationCapabilities: [
+          Capability.Play,
+          Capability.Pause,
+          Capability.JumpForward,
+          Capability.JumpBackward,
+          Capability.SkipToNext,
+          Capability.SkipToPrevious,
+        ],
+        compactCapabilities: [Capability.SkipToPrevious, Capability.Play, Capability.Pause, Capability.SkipToNext],
+        progressUpdateEventInterval: interval,
+      }).catch(() => {});
     } catch {}
   }, [effectiveQuality]);
 

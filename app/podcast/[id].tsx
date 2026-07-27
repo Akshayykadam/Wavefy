@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Heart, Play, Pause, Download, Check } from "lucide-react-native";
+import { ArrowLeft, Heart, Play, Pause, Download, Check, ListPlus } from "lucide-react-native";
 import React from "react";
 import {
   View,
@@ -51,7 +51,8 @@ const MemoizedEpisodeRow = React.memo(({
   downloaded,
   progress,
   onPlay,
-  onDownload
+  onDownload,
+  onAddToQueue,
 }: { 
   episode: Episode; 
   podcast: Podcast; 
@@ -61,6 +62,7 @@ const MemoizedEpisodeRow = React.memo(({
   progress: number;
   onPlay: () => void;
   onDownload: () => void;
+  onAddToQueue: () => void;
 }) => {
   const isDownloading = progress > 0 && progress < 100;
   // Strip HTML tags from description for plain-text preview
@@ -126,6 +128,15 @@ const MemoizedEpisodeRow = React.memo(({
         </View>
       </View>
 
+      {/* Add to Queue */}
+      <Pressable
+        style={styles.downloadButton}
+        onPress={onAddToQueue}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <ListPlus size={18} color={Colors.secondaryText} />
+      </Pressable>
+
       {/* Download */}
       <Pressable
         style={[styles.downloadButton, isDownloading && { opacity: 0.8 }]}
@@ -149,7 +160,7 @@ MemoizedEpisodeRow.displayName = "MemoizedEpisodeRow";
 export default function PodcastDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { playEpisode, currentEpisode, isPlaying, togglePlayPause, setPodcastEpisodes } = usePlayer();
+  const { playEpisode, currentEpisode, isPlaying, togglePlayPause, setPodcastEpisodes, addToQueue } = usePlayer();
   const { isFollowing, toggleFollow, followedPodcasts } = useFollowedPodcasts();
   const { downloadEpisode, isDownloaded, getDownloadProgress, downloads } = useDownloads();
   const { isOffline } = useNetwork();
@@ -232,6 +243,10 @@ export default function PodcastDetailScreen() {
         progress={progress}
         onPlay={() => handleEpisodePlay(episode)}
         onDownload={() => handleEpisodeDownload(episode)}
+        onAddToQueue={() => {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          addToQueue(episode);
+        }}
       />
     );
   }, [currentEpisode?.id, isPlaying, isDownloaded, getDownloadProgress, podcast, handleEpisodePlay, handleEpisodeDownload]);

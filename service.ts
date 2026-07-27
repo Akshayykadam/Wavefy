@@ -28,17 +28,30 @@ async function playbackService() {
     });
 
     TrackPlayer.addEventListener(Event.RemoteNext, async () => {
-        // Queue handling in PlayerContext
+        console.log('Service: RemoteNext');
+        try {
+            await TrackPlayer.skipToNext();
+        } catch (err) {
+            try {
+                const { position } = await TrackPlayer.getProgress();
+                await TrackPlayer.seekTo(position + 30);
+            } catch (e) {}
+        }
     });
 
     TrackPlayer.addEventListener(Event.RemotePrevious, async () => {
+        console.log('Service: RemotePrevious');
         try {
             const { position } = await TrackPlayer.getProgress();
             if (position > 5) {
                 await TrackPlayer.seekTo(0);
+            } else {
+                await TrackPlayer.skipToPrevious();
             }
         } catch (err) {
-            console.warn('TrackPlayer previous error:', err);
+            try {
+                await TrackPlayer.seekTo(0);
+            } catch (e) {}
         }
     });
 

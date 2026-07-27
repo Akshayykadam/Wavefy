@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { View, Text, StyleSheet, FlatList, Pressable, Animated, Dimensions } from "react-native";
 import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Play, Trash2, Heart, Download, Headphones, Music2, Plus, Clock } from "lucide-react-native";
+import { Play, Trash2, Heart, Download, Headphones, Music2, Plus, Clock, ListPlus } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Colors from "@/constants/colors";
 import { useFollowedPodcasts } from "@/contexts/FollowedPodcastsContext";
@@ -26,7 +26,7 @@ export default function LibraryScreen() {
   const { followedPodcasts } = useFollowedPodcasts();
   const { likedEpisodes } = useLikedEpisodes();
   const { downloads, deleteDownload } = useDownloads();
-  const { playEpisode, setQueue, resumeEpisode, getListeningHistory, removeHistoryItem, clearHistory } = usePlayer();
+  const { playEpisode, setQueue, resumeEpisode, getListeningHistory, removeHistoryItem, clearHistory, addToQueue } = usePlayer();
   const { playlists, createPlaylist, deletePlaylist } = usePlaylist();
   const { isOffline } = useNetwork();
   const [activeTab, setActiveTab] = useState<TabKey>('podcasts');
@@ -205,6 +205,17 @@ export default function LibraryScreen() {
         <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.episodeSubtitle}>{item.podcastTitle || 'Unknown Podcast'}</Text>
       </View>
+      <Pressable
+        style={[styles.playBtn, { marginRight: 8, backgroundColor: 'transparent' }]}
+        onPress={(e) => {
+          e.stopPropagation();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          addToQueue(item);
+        }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <ListPlus size={18} color={Colors.secondaryText} />
+      </Pressable>
       <View style={styles.playBtn}>
         <Play size={18} color={Colors.accent} fill={Colors.accent} />
       </View>
@@ -221,6 +232,17 @@ export default function LibraryScreen() {
         <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.episodeSubtitle}>{item.podcastTitle || item.collectionName || 'Unknown Podcast'}</Text>
       </View>
+      <Pressable
+        style={[styles.playBtn, { marginRight: 8, backgroundColor: 'transparent' }]}
+        onPress={(e) => {
+          e.stopPropagation();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          addToQueue(item);
+        }}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <ListPlus size={18} color={Colors.secondaryText} />
+      </Pressable>
       <View style={styles.playBtn}>
         <Play size={18} color={Colors.accent} fill={Colors.accent} />
       </View>
@@ -529,30 +551,35 @@ const styles = StyleSheet.create({
     color: Colors.primaryText,
     paddingHorizontal: 20,
     paddingTop: 8,
-    marginBottom: 8,
+    paddingBottom: 4,
+    marginBottom: 4,
     letterSpacing: -0.5,
+    lineHeight: 38,
   },
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginTop: 4,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 4,
     marginBottom: 8,
     position: 'relative',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   tabButton: {
-    paddingTop: 12,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    marginRight: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginRight: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   tabText: {
     fontSize: 15,
     fontWeight: '600',
     color: Colors.secondaryText,
     letterSpacing: -0.2,
-    lineHeight: 20,
+    lineHeight: 22,
   },
   activeTabText: {
     color: Colors.primaryText,

@@ -88,6 +88,14 @@ const setupPlayer = async () => {
         Capability.SkipToNext,
         Capability.SkipToPrevious,
       ],
+      notificationCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.JumpForward,
+        Capability.JumpBackward,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+      ],
       compactCapabilities: [Capability.SkipToPrevious, Capability.Play, Capability.Pause, Capability.SkipToNext],
       progressUpdateEventInterval: 2,
     });
@@ -482,16 +490,14 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     setCurrentPodcast(podcast);
 
     try {
-      await TrackPlayer.pause();
-    } catch (e) {}
-
-    try {
-      await TrackPlayer.load({
+      await TrackPlayer.reset();
+      await TrackPlayer.add({
         id: String(episode.id),
         url: trackUrl,
         title: episode.title,
         artist: podcast.collectionName,
         artwork: episode.artwork || podcast.artworkUrl600,
+        duration: episode.duration,
       });
 
       if (playRequestId.current !== currentReq) return;
@@ -971,9 +977,22 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   }, []);
 
   useTrackPlayerEvents(
-    [TrackPlayerEvent.RemoteNext, TrackPlayerEvent.RemotePrevious, TrackPlayerEvent.RemoteJumpForward, TrackPlayerEvent.RemoteJumpBackward],
+    [
+      TrackPlayerEvent.RemotePlay,
+      TrackPlayerEvent.RemotePause,
+      TrackPlayerEvent.RemoteNext,
+      TrackPlayerEvent.RemotePrevious,
+      TrackPlayerEvent.RemoteJumpForward,
+      TrackPlayerEvent.RemoteJumpBackward,
+    ],
     async (event) => {
-      if (event.type === TrackPlayerEvent.RemoteNext) {
+      if (event.type === TrackPlayerEvent.RemotePlay) {
+        setIsPlaying(true);
+        TrackPlayer.play().catch(() => {});
+      } else if (event.type === TrackPlayerEvent.RemotePause) {
+        setIsPlaying(false);
+        TrackPlayer.pause().catch(() => {});
+      } else if (event.type === TrackPlayerEvent.RemoteNext) {
         playNext();
       } else if (event.type === TrackPlayerEvent.RemotePrevious) {
         playPrevious();

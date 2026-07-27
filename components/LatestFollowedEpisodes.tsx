@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useQuery } from '@tanstack/react-query';
-import { Play, Pause, Clock, PlusCircle, Rss } from 'lucide-react-native';
+import { Play, Pause, Clock, PlusCircle, Rss, ListPlus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
@@ -30,7 +30,7 @@ export interface FollowedEpisodeItem extends Episode {
 export default function LatestFollowedEpisodes() {
   const router = useRouter();
   const { followedPodcasts, isLoading: followedLoading } = useFollowedPodcasts();
-  const { currentEpisode, isPlaying, playEpisode, togglePlayPause } = usePlayer();
+  const { currentEpisode, isPlaying, playEpisode, togglePlayPause, addToQueue } = usePlayer();
 
   // Query to fetch and aggregate latest episodes from all followed channels
   const { data: latestEpisodes = [], isLoading: episodesLoading } = useQuery<FollowedEpisodeItem[]>({
@@ -195,6 +195,17 @@ export default function LatestFollowedEpisodes() {
                       {formatPubDate(item.pubDate)}
                     </Text>
                   </View>
+                  <Pressable
+                    style={[styles.playButton, { marginRight: 6 }]}
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      addToQueue(item);
+                    }}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <ListPlus color={Colors.accent} size={14} />
+                  </Pressable>
                   <Pressable
                     style={[styles.playButton, isPlayingThis && styles.playButtonActive]}
                     onPress={() => {
