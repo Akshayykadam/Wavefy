@@ -237,7 +237,8 @@ export default function LatestFollowedEpisodes() {
 
 const styles = StyleSheet.create({
   section: {
-    marginBottom: 24,
+    marginTop: 20,
+    marginBottom: 0,
   },
   headerRow: {
     flexDirection: 'row',
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
     color: Colors.primaryText,
     letterSpacing: -0.3,
   },

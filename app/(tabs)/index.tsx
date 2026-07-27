@@ -368,15 +368,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerLogo: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 6,
   },
   headerAppName: {
-    fontSize: 22,
-    fontWeight: "800" as const,
+    fontSize: 16,
+    fontWeight: "500" as const,
     color: Colors.primaryText,
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -471,14 +471,14 @@ const styles = StyleSheet.create({
     color: Colors.primaryText,
   },
   section: {
-    marginTop: 28,
+    marginTop: 20,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: "700" as const,
     color: Colors.primaryText,
     paddingHorizontal: 20,
-    marginBottom: 14,
+    marginBottom: 12,
     letterSpacing: -0.3,
   },
   horizontalScroll: {
