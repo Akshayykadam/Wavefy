@@ -236,7 +236,14 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <View style={styles.header}>
-          <View style={styles.titleContainer} />
+          <View style={styles.titleContainer}>
+            <Image
+              source={require("@/assets/images/icon.png")}
+              style={styles.headerLogo}
+              contentFit="contain"
+            />
+            <Text style={styles.headerAppName}>Wavefy</Text>
+          </View>
           <View style={styles.headerButtons}>
             <Pressable
               onPress={() => {
@@ -360,11 +367,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  title: {
-    fontSize: 30,
+  headerLogo: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+  },
+  headerAppName: {
+    fontSize: 22,
     fontWeight: "800" as const,
     color: Colors.primaryText,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   headerButtons: {
     flexDirection: 'row',
