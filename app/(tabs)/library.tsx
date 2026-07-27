@@ -345,52 +345,53 @@ export default function LibraryScreen() {
         <Text style={styles.headerTitle}>Library</Text>
 
         {/* Tab bar */}
-        <ScrollView
-          horizontal
-          style={{ flexGrow: 0, overflow: 'visible' }}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabContainer}
-        >
-          {TABS.map((tab, index) => {
-            const key = tab.toLowerCase() as TabKey;
-            const isActive = activeTab === key;
-            return (
-              <Pressable
-                key={tab}
-                onLayout={(e) => {
-                  const { x, width: w } = e.nativeEvent.layout;
-                  onTabLayout(index, x, w);
-                }}
-                style={styles.tabButton}
-                onPress={() => switchTab(key)}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'visible' }}>
-                  <Text style={[styles.tabText, isActive && styles.activeTabText]}>{tab}</Text>
-                  {key === 'downloaded' && downloadsArray.filter((d: any) => d.status === 'completed').length > 0 && (
-                    <View style={styles.downloadBadge}>
-                      <Text style={styles.downloadBadgeText} textBreakStrategy="simple">
-                        {downloadsArray.filter((d: any) => d.status === 'completed').length}
-                      </Text>
-                    </View>
-                  )}
-                  {key === 'new episodes' && newEpisodes.length > 0 && (
-                    <View style={[styles.downloadBadge, { backgroundColor: Colors.accent }]}>
-                      <Text style={[styles.downloadBadgeText, { color: '#000' }]} textBreakStrategy="simple">
-                        {newEpisodes.length}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </Pressable>
-            );
-          })}
+        <View style={styles.tabBarWrapper}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabContainer}
+          >
+            {TABS.map((tab, index) => {
+              const key = tab.toLowerCase() as TabKey;
+              const isActive = activeTab === key;
+              return (
+                <Pressable
+                  key={tab}
+                  onLayout={(e) => {
+                    const { x, width: w } = e.nativeEvent.layout;
+                    onTabLayout(index, x, w);
+                  }}
+                  style={styles.tabButton}
+                  onPress={() => switchTab(key)}
+                >
+                  <View style={styles.tabChipRow}>
+                    <Text style={[styles.tabText, isActive && styles.activeTabText]}>{tab}</Text>
+                    {key === 'downloaded' && downloadsArray.filter((d: any) => d.status === 'completed').length > 0 && (
+                      <View style={styles.downloadBadge}>
+                        <Text style={styles.downloadBadgeText} textBreakStrategy="simple">
+                          {downloadsArray.filter((d: any) => d.status === 'completed').length}
+                        </Text>
+                      </View>
+                    )}
+                    {key === 'new episodes' && newEpisodes.length > 0 && (
+                      <View style={[styles.downloadBadge, { backgroundColor: Colors.accent }]}>
+                        <Text style={[styles.downloadBadgeText, { color: '#000' }]} textBreakStrategy="simple">
+                          {newEpisodes.length}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
           <Animated.View
             style={[
               styles.tabIndicator,
               { left: indicatorLeft, width: indicatorWidth },
             ]}
           />
-        </ScrollView>
+        </View>
 
         {activeTab === 'podcasts' ? (
           <FlatList
@@ -578,23 +579,27 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     lineHeight: 38,
   },
-  tabContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 12,
-    marginBottom: 8,
+  tabBarWrapper: {
     position: 'relative',
+    marginBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
-    overflow: 'visible',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
   },
   tabButton: {
-    paddingVertical: 10,
+    paddingTop: 8,
+    paddingBottom: 14,
     paddingHorizontal: 12,
     marginRight: 4,
-    overflow: 'visible',
+  },
+  tabChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   tabText: {
     fontSize: 14,

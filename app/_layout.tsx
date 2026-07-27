@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PlayerProvider } from "@/contexts/PlayerContext";
 import { FollowedPodcastsProvider } from "@/contexts/FollowedPodcastsContext";
 import { LikedEpisodesProvider } from "@/contexts/LikedEpisodesContext";
@@ -22,6 +23,8 @@ import '@/utils/backgroundNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
+const ONBOARDING_KEY = '@castbee_onboarding_complete';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -35,9 +38,25 @@ const queryClient = new QueryClient({
 function RootLayoutNav() {
   const router = useRouter();
   const notificationResponseListener = useRef<{ remove(): void } | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   const routerRef = React.useRef(router);
   React.useEffect(() => { routerRef.current = router; });
+
+  useEffect(() => {
+    // Check onboarding status on mount
+    AsyncStorage.getItem(ONBOARDING_KEY).then((value) => {
+      setIsReady(true);
+      if (value !== 'true') {
+        // Use setTimeout to ensure navigation happens after layout mount
+        setTimeout(() => {
+          routerRef.current.replace('/onboarding' as any);
+        }, 100);
+      }
+    }).catch(() => {
+      setIsReady(true);
+    });
+  }, []);
 
   useEffect(() => {
     // Handle notification taps to navigate to the podcast
@@ -58,6 +77,14 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerBackTitle: "Back" }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="onboarding"
+        options={{
+          headerShown: false,
+          animation: "none",
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen
         name="player"
         options={{
@@ -139,3 +166,4 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
+

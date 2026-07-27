@@ -1009,8 +1009,33 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   }, []);
 
-
-
+  // Sync React state when lockscreen/notification controls fire
+  // The actual play/pause/seek is handled by service.ts — this just keeps UI in sync
+  useTrackPlayerEvents(
+    [
+      TrackPlayerEvent.RemotePlay,
+      TrackPlayerEvent.RemotePause,
+      TrackPlayerEvent.RemoteNext,
+      TrackPlayerEvent.RemotePrevious,
+      TrackPlayerEvent.RemoteJumpForward,
+      TrackPlayerEvent.RemoteJumpBackward,
+    ],
+    async (event) => {
+      if (event.type === TrackPlayerEvent.RemotePlay) {
+        setIsPlaying(true);
+      } else if (event.type === TrackPlayerEvent.RemotePause) {
+        setIsPlaying(false);
+      } else if (event.type === TrackPlayerEvent.RemoteNext) {
+        playNext();
+      } else if (event.type === TrackPlayerEvent.RemotePrevious) {
+        playPrevious();
+      } else if (event.type === TrackPlayerEvent.RemoteJumpForward) {
+        skipForward();
+      } else if (event.type === TrackPlayerEvent.RemoteJumpBackward) {
+        skipBackward();
+      }
+    }
+  );
 
 
 
