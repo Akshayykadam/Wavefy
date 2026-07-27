@@ -15,26 +15,20 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import {
-  Sparkles,
   Headphones,
   Bell,
   ArrowRight,
-  Download,
-  Sliders,
-  Radio,
-  Zap,
 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
 import { setupNotifications, registerBackgroundFetch } from '@/utils/backgroundNotifications';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-const ONBOARDING_KEY = '@castbee_onboarding_complete';
+const ONBOARDING_KEY = '@wavefy_onboarding_complete';
 
 interface OnboardingItem {
   id: string;
-  badge: string;
   title: string;
   highlightText: string;
   description: string;
@@ -43,24 +37,21 @@ interface OnboardingItem {
 const PAGES: OnboardingItem[] = [
   {
     id: '1',
-    badge: 'CASTBEE PODCASTS',
-    title: 'Stories that',
-    highlightText: 'buzz.',
-    description: 'Explore millions of podcasts, trending charts, and daily releases tailored to your taste.',
+    title: 'Listen',
+    highlightText: 'everywhere.',
+    description: 'Stream seamlessly or download podcasts for offline listening anytime, anywhere.',
   },
   {
     id: '2',
-    badge: 'TAILORED LISTENING',
-    title: 'Audio on your',
-    highlightText: 'terms.',
-    description: 'Seamless offline downloads, custom playback queueing, and smart speed controls.',
+    title: 'Discover',
+    highlightText: 'new audio.',
+    description: 'Explore top charts, curated categories, and daily recommendations tailored to your taste.',
   },
   {
     id: '3',
-    badge: 'STAY CONNECTED',
-    title: 'Never miss an',
-    highlightText: 'episode.',
-    description: 'Follow your favorite creators and get notified the moment fresh episodes drop.',
+    title: 'Repeat',
+    highlightText: 'your favorites.',
+    description: 'Follow your top shows, build custom playlists, and get notified when new episodes drop.',
   },
 ];
 
@@ -99,6 +90,7 @@ export default function OnboardingScreen() {
     try {
       // 1. Save onboarding completion status
       await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+      await AsyncStorage.setItem('@castbee_onboarding_complete', 'true');
       
       // 2. ONLY NOW request notification permissions after completing onboarding
       await setupNotifications();
@@ -115,25 +107,12 @@ export default function OnboardingScreen() {
     if (index === 0) {
       return (
         <View style={styles.visualContainer}>
-          {/* Ambient Glow */}
-          <View style={styles.glowBg} />
           <View style={styles.heroCard}>
             <Image
               source={require('@/assets/images/icon.png')}
               style={styles.logoImage}
               contentFit="cover"
             />
-          </View>
-          {/* Subtle floating pills */}
-          <View style={styles.floatingPillContainer}>
-            <View style={styles.pillTag}>
-              <Sparkles size={12} color={Colors.accent} />
-              <Text style={styles.pillTagText}>Trending Shows</Text>
-            </View>
-            <View style={[styles.pillTag, { backgroundColor: Colors.surfaceElevated }]}>
-              <Radio size={12} color={Colors.accentAlt} />
-              <Text style={styles.pillTagText}>High Quality</Text>
-            </View>
           </View>
         </View>
       );
@@ -142,32 +121,8 @@ export default function OnboardingScreen() {
     if (index === 1) {
       return (
         <View style={styles.visualContainer}>
-          <View style={[styles.glowBg, { backgroundColor: 'rgba(255, 107, 107, 0.12)' }]} />
-          <View style={styles.featureGrid}>
-            <View style={styles.featureRow}>
-              <View style={styles.featureBox}>
-                <Download size={24} color={Colors.accent} />
-                <Text style={styles.featureBoxTitle}>Offline</Text>
-                <Text style={styles.featureBoxSub}>Listen anywhere</Text>
-              </View>
-              <View style={styles.featureBox}>
-                <Sliders size={24} color={Colors.accentAlt} />
-                <Text style={styles.featureBoxTitle}>Speed</Text>
-                <Text style={styles.featureBoxSub}>0.5x to 3.0x</Text>
-              </View>
-            </View>
-            <View style={styles.featureRow}>
-              <View style={styles.featureBox}>
-                <Headphones size={24} color={Colors.accentAlt} />
-                <Text style={styles.featureBoxTitle}>Auto-Queue</Text>
-                <Text style={styles.featureBoxSub}>Continuous audio</Text>
-              </View>
-              <View style={styles.featureBox}>
-                <Zap size={24} color={Colors.accent} />
-                <Text style={styles.featureBoxTitle}>Instant</Text>
-                <Text style={styles.featureBoxSub}>Zero buffering</Text>
-              </View>
-            </View>
+          <View style={styles.heroCard}>
+            <Headphones size={64} color={Colors.accent} />
           </View>
         </View>
       );
@@ -176,15 +131,8 @@ export default function OnboardingScreen() {
     // Index 2
     return (
       <View style={styles.visualContainer}>
-        <View style={styles.glowBg} />
-        <View style={styles.bellCard}>
-          <View style={styles.bellIconCircle}>
-            <Bell size={44} color={Colors.accent} />
-          </View>
-          <View style={styles.notificationPreview}>
-            <View style={styles.notifDot} />
-            <Text style={styles.notifText}>New Episode Out Now</Text>
-          </View>
+        <View style={styles.heroCard}>
+          <Bell size={64} color={Colors.accent} />
         </View>
       </View>
     );
@@ -193,15 +141,11 @@ export default function OnboardingScreen() {
   const renderPage = ({ item, index }: { item: OnboardingItem; index: number }) => {
     return (
       <View style={styles.page}>
-        {/* Upper visual display */}
+        {/* Upper visual display - single big icon */}
         <View style={styles.visualSection}>{renderVisual(index)}</View>
 
-        {/* Lower typography section */}
+        {/* Lower typography section - no badge chip text */}
         <View style={styles.textSection}>
-          <View style={styles.badgeView}>
-            <Text style={styles.badgeText}>{item.badge}</Text>
-          </View>
-
           <Text style={styles.titleText}>
             {item.title}{' '}
             <Text style={styles.highlightText}>{item.highlightText}</Text>
@@ -223,7 +167,7 @@ export default function OnboardingScreen() {
         <View style={styles.header}>
           <View style={styles.brandRow}>
             <View style={styles.smallDot} />
-            <Text style={styles.brandName}>CastBee</Text>
+            <Text style={styles.brandName}>Wavefy</Text>
           </View>
           {!isLastPage && (
             <Pressable
@@ -343,7 +287,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
   },
   brandName: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
     color: Colors.primaryText,
     letterSpacing: -0.3,
@@ -364,7 +308,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 28,
     justifyContent: 'space-between',
-    paddingBottom: 16,
+    paddingBottom: 24,
   },
   visualSection: {
     flex: 1.2,
@@ -376,142 +320,25 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
-  },
-  glowBg: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: Colors.accentGlow20,
   },
   heroCard: {
-    width: 130,
-    height: 130,
-    borderRadius: 36,
+    width: 140,
+    height: 140,
+    borderRadius: 40,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 8,
   },
   logoImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 24,
-  },
-  floatingPillContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  pillTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  pillTagText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.primaryText,
-  },
-  featureGrid: {
-    width: '100%',
-    gap: 12,
-    paddingHorizontal: 8,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  featureBox: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 20,
-    padding: 16,
-    gap: 6,
-  },
-  featureBoxTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.primaryText,
-    marginTop: 4,
-  },
-  featureBoxSub: {
-    fontSize: 12,
-    color: Colors.secondaryText,
-    fontWeight: '500',
-  },
-  bellCard: {
-    alignItems: 'center',
-    gap: 20,
-  },
-  bellIconCircle: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: Colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: Colors.borderLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Colors.accent,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-  },
-  notificationPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.surfaceLight,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  notifDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.accent,
-  },
-  notifText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.primaryText,
+    width: 104,
+    height: 104,
+    borderRadius: 26,
   },
   textSection: {
     flex: 0.9,
     justifyContent: 'flex-start',
-  },
-  badgeView: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255,59,48,0.12)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.accent,
-    letterSpacing: 1.2,
   },
   titleText: {
     fontSize: 34,
@@ -526,7 +353,7 @@ const styles = StyleSheet.create({
   },
   descriptionText: {
     fontSize: 15,
-    lineHeight: 23,
+    lineHeight: 24,
     color: Colors.secondaryText,
     fontWeight: '400',
   },
