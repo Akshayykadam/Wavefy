@@ -27,7 +27,7 @@ import { getOptimizedArtwork } from '@/utils/image';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.42;
 
-const COUNTRY_STORAGE_KEY = '@castbee_user_country';
+const COUNTRY_STORAGE_KEY = '@wavefy_user_country';
 
 export const GENRE_IDS = [
   { id: 0, name: 'All' },

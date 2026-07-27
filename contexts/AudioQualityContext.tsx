@@ -7,7 +7,7 @@ import TrackPlayer from 'react-native-track-player';
 export type QualityMode = 'auto' | 'high' | 'medium' | 'low';
 export type EffectiveQuality = 'high' | 'medium' | 'low';
 
-const STORAGE_KEY = '@castbee_audio_quality_mode';
+const STORAGE_KEY = '@wavefy_audio_quality_mode';
 
 export const [AudioQualityProvider, useAudioQuality] = createContextHook(() => {
   const [qualityMode, setQualityModeState] = useState<QualityMode>('auto');

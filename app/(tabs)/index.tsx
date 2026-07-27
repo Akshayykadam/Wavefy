@@ -368,15 +368,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerLogo: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 7,
   },
   headerAppName: {
-    fontSize: 16,
+    fontSize: 19,
     fontWeight: "500" as const,
     color: Colors.primaryText,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   headerButtons: {
     flexDirection: 'row',

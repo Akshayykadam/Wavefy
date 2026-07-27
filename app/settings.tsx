@@ -41,7 +41,7 @@ export default function SettingsScreen() {
   const [preferredQuality, setPreferredQuality] = useState('High');
 
   useEffect(() => {
-    AsyncStorage.getItem('@castbee_clean_mode').then((val) => {
+    AsyncStorage.getItem('@wavefy_clean_mode').then((val) => {
       if (val !== null) setCleanMode(JSON.parse(val));
     });
   }, []);
@@ -49,7 +49,7 @@ export default function SettingsScreen() {
   const handleToggleCleanMode = async (val: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCleanMode(val);
-    await AsyncStorage.setItem('@castbee_clean_mode', JSON.stringify(val));
+    await AsyncStorage.setItem('@wavefy_clean_mode', JSON.stringify(val));
   };
 
   // Cache state
@@ -383,7 +383,11 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
-          
+
+          {/* Footer Branding */}
+          <View style={styles.footerBranding}>
+            <Text style={styles.footerBrandingText}>Built with ❤️ by Akshay Kadam</Text>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -634,5 +638,17 @@ const styles = StyleSheet.create({
   qualityChipDescActive: {
     color: 'rgba(0, 0, 0, 0.7)',
     fontWeight: '600',
+  },
+  footerBranding: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    paddingBottom: 40,
+  },
+  footerBrandingText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.secondaryText,
+    letterSpacing: -0.1,
   },
 });
