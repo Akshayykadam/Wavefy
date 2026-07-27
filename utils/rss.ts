@@ -134,8 +134,10 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
             chapters = extractChaptersFromDescription(description);
         }
 
+        const episodeId = guid || audioUrl || `ep_${url}_${i}`;
+
         episodes.push({ 
-            id: guid || String(i), 
+            id: episodeId, 
             title, 
             descriptionHtml,
             description, 

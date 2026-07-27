@@ -161,7 +161,7 @@ MemoizedEpisodeRow.displayName = "MemoizedEpisodeRow";
 export default function PodcastDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { playEpisode, currentEpisode, isPlaying, togglePlayPause, setPodcastEpisodes, addToQueue } = usePlayer();
+  const { playEpisode, currentEpisode, currentPodcast, isPlaying, togglePlayPause, setPodcastEpisodes, addToQueue } = usePlayer();
   const { isFollowing, toggleFollow, followedPodcasts } = useFollowedPodcasts();
   const { downloadEpisode, isDownloaded, getDownloadProgress, downloads } = useDownloads();
   const { isOffline } = useNetwork();
@@ -212,12 +212,24 @@ export default function PodcastDetailScreen() {
     if (displayEpisodes.length > 0) setPodcastEpisodes(displayEpisodes);
   }, [displayEpisodes, setPodcastEpisodes]);
 
+  const isEpisodeActive = React.useCallback((ep: Episode | null) => {
+    if (!currentEpisode || !ep) return false;
+    if (currentEpisode.audioUrl && ep.audioUrl && currentEpisode.audioUrl === ep.audioUrl) return true;
+    if (currentEpisode.id === ep.id) {
+      if (currentPodcast && podcast && currentPodcast.collectionId !== podcast.collectionId) {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }, [currentEpisode, currentPodcast, podcast]);
+
   // Stable callbacks for episode row actions — prevents MemoizedEpisodeRow re-renders
   const handleEpisodePlay = React.useCallback((episode: Episode) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (currentEpisode?.id === episode.id) togglePlayPause();
+    if (isEpisodeActive(episode)) togglePlayPause();
     else if (podcast) playEpisode(episode, podcast);
-  }, [currentEpisode?.id, togglePlayPause, playEpisode, podcast]);
+  }, [isEpisodeActive, togglePlayPause, playEpisode, podcast]);
 
   const handleEpisodeDownload = React.useCallback((episode: Episode) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -229,7 +241,7 @@ export default function PodcastDetailScreen() {
   }, [isDownloaded, getDownloadProgress, downloadEpisode, podcast]);
 
   const renderEpisodeItem = React.useCallback(({ item: episode }: { item: Episode }) => {
-    const isCurrentEp = currentEpisode?.id === episode.id;
+    const isCurrentEp = isEpisodeActive(episode);
     const isThisPlaying = isCurrentEp && isPlaying;
     const downloaded = isDownloaded(episode.id);
     const progress = getDownloadProgress(episode.id);
@@ -294,7 +306,7 @@ export default function PodcastDetailScreen() {
   }
 
   const latestEpisode = displayEpisodes.length > 0 ? displayEpisodes[0] : null;
-  const isLatestPlaying = latestEpisode && currentEpisode?.id === latestEpisode.id && isPlaying;
+  const isLatestPlaying = latestEpisode && isEpisodeActive(latestEpisode) && isPlaying;
 
   return (
     <View style={styles.container}>

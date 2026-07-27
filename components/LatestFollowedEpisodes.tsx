@@ -30,7 +30,7 @@ export interface FollowedEpisodeItem extends Episode {
 export default function LatestFollowedEpisodes() {
   const router = useRouter();
   const { followedPodcasts, isLoading: followedLoading } = useFollowedPodcasts();
-  const { currentEpisode, isPlaying, playEpisode, togglePlayPause, addToQueue } = usePlayer();
+  const { currentEpisode, currentPodcast, isPlaying, playEpisode, togglePlayPause, addToQueue } = usePlayer();
 
   // Query to fetch and aggregate latest episodes from all followed channels
   const { data: latestEpisodes = [], isLoading: episodesLoading } = useQuery<FollowedEpisodeItem[]>({
@@ -155,7 +155,10 @@ export default function LatestFollowedEpisodes() {
           contentContainerStyle={styles.horizontalScroll}
         >
           {latestEpisodes.map((item) => {
-            const isCurrent = currentEpisode?.id === item.id;
+            const isCurrent = !!currentEpisode && (
+              (!!currentEpisode.audioUrl && !!item.audioUrl && currentEpisode.audioUrl === item.audioUrl) ||
+              (currentEpisode.id === item.id && (!currentPodcast || currentPodcast.collectionId === item.parentPodcast.collectionId))
+            );
             const isPlayingThis = isCurrent && isPlaying;
             const artworkUrl = getOptimizedArtwork(
               item.artwork || item.parentPodcast.artworkUrl600,
