@@ -19,6 +19,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import HeroCarousel from "@/components/HeroCarousel";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import ContinueListeningCard from "@/components/ContinueListeningCard";
+import LatestFollowedEpisodes from "@/components/LatestFollowedEpisodes";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { useNetwork } from "@/contexts/NetworkContext";
 import { getOptimizedArtwork } from "@/utils/image";
@@ -302,6 +303,9 @@ export default function HomeScreen() {
               </ScrollView>
             </View>
           )}
+
+          {/* Latest Episodes from Followed Channels */}
+          <LatestFollowedEpisodes />
 
           {/* Recommendation and Daily Mix sections removed */}
 
