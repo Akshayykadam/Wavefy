@@ -146,10 +146,10 @@ export default function LibraryScreen() {
       }}
     >
       <Image source={{ uri: item.artworkUrl600 }} style={styles.artwork} contentFit="cover" />
-      <Text style={styles.podcastTitle} numberOfLines={2}>
+      <Text style={styles.podcastTitle} numberOfLines={2} textBreakStrategy="simple">
         {item.collectionName}
       </Text>
-      <Text style={styles.podcastAuthor} numberOfLines={1}>
+      <Text style={styles.podcastAuthor} numberOfLines={1} textBreakStrategy="simple">
         {item.artistName}
       </Text>
     </Pressable>
@@ -202,15 +202,25 @@ export default function LibraryScreen() {
     >
       <Image source={{ uri: item.artwork || item.podcastArtwork }} style={styles.episodeArtwork} contentFit="cover" />
       <View style={styles.episodeInfo}>
-        <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.episodeSubtitle}>{item.podcastTitle || 'Unknown Podcast'}</Text>
+        <Text style={styles.episodeTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
+        <Text style={styles.episodeSubtitle} numberOfLines={1} textBreakStrategy="simple">{item.podcastTitle || 'Unknown Podcast'}</Text>
       </View>
       <Pressable
         style={[styles.playBtn, { marginRight: 8, backgroundColor: 'transparent' }]}
         onPress={(e) => {
           e.stopPropagation();
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          addToQueue(item);
+          const epToQueue: Episode = {
+            id: item.episodeId,
+            title: item.episodeTitle || 'Untitled',
+            description: '',
+            audioUrl: item.audioUrl || '',
+            pubDate: item.lastPlayedAt || '',
+            duration: item.duration || 0,
+            artwork: item.episodeArtwork || item.podcastArtwork || '',
+            podcastTitle: item.podcastTitle,
+          };
+          addToQueue(epToQueue);
         }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
@@ -229,15 +239,26 @@ export default function LibraryScreen() {
     >
       <Image source={{ uri: item.artwork }} style={styles.episodeArtwork} contentFit="cover" />
       <View style={styles.episodeInfo}>
-        <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.episodeSubtitle}>{item.podcastTitle || item.collectionName || 'Unknown Podcast'}</Text>
+        <Text style={styles.episodeTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
+        <Text style={styles.episodeSubtitle} numberOfLines={1} textBreakStrategy="simple">{item.podcastTitle || item.collectionName || 'Unknown Podcast'}</Text>
       </View>
       <Pressable
         style={[styles.playBtn, { marginRight: 8, backgroundColor: 'transparent' }]}
         onPress={(e) => {
           e.stopPropagation();
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          addToQueue(item);
+          const epToQueue: Episode = {
+            id: item.id || item.episodeId,
+            title: item.title || item.episodeTitle || 'Untitled',
+            description: item.description || '',
+            audioUrl: item.audioUrl || '',
+            pubDate: item.pubDate || '',
+            duration: item.duration || 0,
+            artwork: item.artwork || item.podcastArtwork || '',
+            podcastTitle: item.podcastTitle || item.collectionName,
+            artistName: item.artistName,
+          };
+          addToQueue(epToQueue);
         }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
@@ -256,8 +277,8 @@ export default function LibraryScreen() {
     >
       <Image source={{ uri: item.podcastArtwork || item.artwork }} style={styles.episodeArtwork} contentFit="cover" />
       <View style={styles.episodeInfo}>
-        <Text style={styles.episodeTitle} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.episodeSubtitle}>
+        <Text style={styles.episodeTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
+        <Text style={styles.episodeSubtitle} numberOfLines={1} textBreakStrategy="simple">
           {item.status === 'downloading' ? `Downloading...` : (item.podcastName || 'Downloaded')}
         </Text>
       </View>
@@ -284,8 +305,8 @@ export default function LibraryScreen() {
     >
       <Image source={{ uri: item.episodeArtwork || item.podcastArtwork || item.artwork }} style={styles.episodeArtwork} contentFit="cover" />
       <View style={styles.episodeInfo}>
-        <Text style={styles.episodeTitle} numberOfLines={2}>{item.episodeTitle || item.title || 'Untitled'}</Text>
-        <Text style={styles.episodeSubtitle}>{item.podcastTitle || 'Unknown Podcast'}</Text>
+        <Text style={styles.episodeTitle} numberOfLines={2} textBreakStrategy="simple">{item.episodeTitle || item.title || 'Untitled'}</Text>
+        <Text style={styles.episodeSubtitle} numberOfLines={1} textBreakStrategy="simple">{item.podcastTitle || 'Unknown Podcast'}</Text>
       </View>
       {item.completed ? (
         <View style={styles.completedBadge}>
@@ -517,8 +538,8 @@ export default function LibraryScreen() {
                       <Music2 color={Colors.secondaryText} size={24} />
                     </View>
                   )}
-                  <Text style={styles.playlistName} numberOfLines={2}>{item.name}</Text>
-                  <Text style={styles.playlistCount}>{item.episodes.length} episodes</Text>
+                  <Text style={styles.playlistName} numberOfLines={2} textBreakStrategy="simple">{item.name}</Text>
+                  <Text style={styles.playlistCount} numberOfLines={1} textBreakStrategy="simple">{item.episodes.length} episodes</Text>
                 </Pressable>
               );
             }}
@@ -612,13 +633,14 @@ const styles = StyleSheet.create({
   },
   podcastTitle: {
     fontSize: 14,
+    lineHeight: 18,
     fontWeight: "600" as const,
     color: Colors.primaryText,
     marginBottom: 2,
-    letterSpacing: -0.2,
   },
   podcastAuthor: {
     fontSize: 12,
+    lineHeight: 16,
     color: Colors.secondaryText,
   },
   episodeContainer: {
@@ -641,16 +663,18 @@ const styles = StyleSheet.create({
   episodeInfo: {
     flex: 1,
     justifyContent: 'center',
+    paddingRight: 8,
   },
   episodeTitle: {
     fontSize: 14,
+    lineHeight: 19,
     fontWeight: '600',
     color: Colors.primaryText,
     marginBottom: 3,
-    letterSpacing: -0.2,
   },
   episodeSubtitle: {
     fontSize: 12,
+    lineHeight: 16,
     color: Colors.secondaryText,
   },
   playBtn: {

@@ -75,49 +75,57 @@ export default function QueueScreen() {
 
   const upNextEpisodes = getUpNextEpisodes();
 
-  const renderQueueItem = ({ item, index }: { item: Episode; index: number }) => (
-    <Pressable
-      style={({ pressed }) => [styles.queueItem, pressed && { opacity: 0.7 }]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        // Play this episode and remove from queue
-        const podcast = currentPodcast || {
-          collectionId: -1,
-          collectionName: item.podcastTitle || '',
-          artistName: item.artistName || '',
-          artworkUrl600: item.artwork || '',
-          artworkUrl100: item.artwork || '',
-          feedUrl: '',
-          trackCount: 0,
-          releaseDate: '',
-          primaryGenreName: '',
-          collectionViewUrl: '',
-        };
-        removeFromQueue(index);
-        playEpisode(item, podcast);
-      }}
-    >
-      <Image
-        source={{ uri: item.artwork || currentPodcast?.artworkUrl600 }}
-        style={styles.queueArtwork}
-        contentFit="cover"
-      />
-      <View style={styles.queueInfo}>
-        <Text style={styles.queueTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
-        <Text style={styles.queueSubtitle} numberOfLines={1} textBreakStrategy="simple">
-          {item.podcastTitle || currentPodcast?.collectionName}
-          {item.duration > 0 ? ` · ${formatDuration(item.duration)}` : ''}
-        </Text>
-      </View>
+  const renderQueueItem = ({ item, index }: { item: Episode; index: number }) => {
+    const isSamePodcastAsCurrent = !!(currentPodcast && item.podcastTitle && currentPodcast.collectionName === item.podcastTitle);
+    const itemArtwork = item.artwork || (isSamePodcastAsCurrent ? currentPodcast?.artworkUrl600 : '');
+    const itemPodcastTitle = item.podcastTitle || (isSamePodcastAsCurrent ? currentPodcast?.collectionName : 'Unknown Podcast');
+
+    return (
       <Pressable
-        onPress={() => removeFromQueue(index)}
-        style={styles.removeBtn}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={({ pressed }) => [styles.queueItem, pressed && { opacity: 0.7 }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          // Play this episode and remove from queue
+          const podcast = isSamePodcastAsCurrent && currentPodcast
+            ? currentPodcast
+            : {
+                collectionId: -1,
+                collectionName: item.podcastTitle || 'Unknown Podcast',
+                artistName: item.artistName || 'Unknown Artist',
+                artworkUrl600: item.artwork || '',
+                artworkUrl100: item.artwork || '',
+                feedUrl: '',
+                trackCount: 0,
+                releaseDate: '',
+                primaryGenreName: '',
+                collectionViewUrl: '',
+              };
+          removeFromQueue(index);
+          playEpisode(item, podcast);
+        }}
       >
-        <Trash2 color={Colors.accent} size={16} />
+        <Image
+          source={{ uri: itemArtwork }}
+          style={styles.queueArtwork}
+          contentFit="cover"
+        />
+        <View style={styles.queueInfo}>
+          <Text style={styles.queueTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
+          <Text style={styles.queueSubtitle} numberOfLines={1} textBreakStrategy="simple">
+            {itemPodcastTitle}
+            {item.duration > 0 ? ` · ${formatDuration(item.duration)}` : ''}
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => removeFromQueue(index)}
+          style={styles.removeBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Trash2 color={Colors.accent} size={16} />
+        </Pressable>
       </Pressable>
-    </Pressable>
-  );
+    );
+  };
 
   const renderUpNextItem = ({ item }: { item: Episode }) => (
     <Pressable

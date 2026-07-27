@@ -258,7 +258,7 @@ export default function PodcastDetailScreen() {
         onDownload={() => handleEpisodeDownload(episode)}
         onAddToQueue={() => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          addToQueue(episode);
+          addToQueue(episode, podcast || undefined);
         }}
       />
     );

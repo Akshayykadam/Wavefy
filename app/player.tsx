@@ -520,7 +520,7 @@ export default function PlayerScreen() {
               onPress={() => {
                 setMenuVisible(false);
                 if (currentEpisode) {
-                  addToQueue(currentEpisode);
+                  addToQueue(currentEpisode, currentPodcast || undefined);
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 }
               }}

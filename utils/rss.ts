@@ -73,6 +73,36 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
     // Yield to the UI thread before parsing
     await new Promise(resolve => setTimeout(resolve, 10));
     
+    // Extract channel-level metadata
+    const firstItemIndex = text.indexOf('<item');
+    const headerXml = firstItemIndex !== -1 ? text.substring(0, firstItemIndex) : text;
+
+    const channelTitleMatch = headerXml.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    let channelTitle = "";
+    if (channelTitleMatch) {
+      channelTitle = channelTitleMatch[1]
+        .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+        .replace(/<[^>]*>/g, "")
+        .trim();
+    }
+
+    const channelAuthorMatch = headerXml.match(/<itunes:author[^>]*>([\s\S]*?)<\/itunes:author>/i) ||
+                               headerXml.match(/<itunes:owner[^>]*>[\s\S]*?<itunes:name[^>]*>([\s\S]*?)<\/itunes:name>/i);
+    let channelAuthor = "";
+    if (channelAuthorMatch) {
+      channelAuthor = channelAuthorMatch[1]
+        .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+        .replace(/<[^>]*>/g, "")
+        .trim();
+    }
+
+    const channelImageMatch = headerXml.match(/<itunes:image[^>]*href=["']([^"']*)["']/i) ||
+                              headerXml.match(/<image[^>]*>[\s\S]*?<url[^>]*>([\s\S]*?)<\/url>/i);
+    let channelArtwork = "";
+    if (channelImageMatch) {
+      channelArtwork = channelImageMatch[1].trim();
+    }
+
     const itemMatches: string[] = [];
     let startPos = 0;
     // Extract first 25 items using index-based scanning (extremely fast and doesn't block the thread)
@@ -127,7 +157,8 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
         const duration = parseDuration(durationText);
         
         const imageMatch = item.match(/<itunes:image[^>]*href=["']([^"']*)["']/i);
-        const artwork = imageMatch ? imageMatch[1].trim() : "";
+        const episodeArtwork = imageMatch ? imageMatch[1].trim() : "";
+        const artwork = episodeArtwork || channelArtwork;
 
         let chapters = parsePscChapters(item);
         if (chapters.length === 0) {
@@ -145,6 +176,8 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
             pubDate, 
             duration, 
             artwork,
+            podcastTitle: channelTitle || undefined,
+            artistName: channelAuthor || undefined,
             chapters: chapters.length > 0 ? chapters : undefined
         });
     }

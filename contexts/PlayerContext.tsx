@@ -859,14 +859,16 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       const nextEpisode = queue[0];
       setQueue(prev => prev.slice(1));
 
-      let podcastToUse = currentPodcast;
-      if (nextEpisode.podcastTitle || nextEpisode.artistName) {
+      let podcastToUse: Podcast;
+      if (currentPodcast && nextEpisode.podcastTitle && currentPodcast.collectionName === nextEpisode.podcastTitle) {
+        podcastToUse = currentPodcast;
+      } else {
         podcastToUse = {
           collectionId: -1,
           collectionName: nextEpisode.podcastTitle || 'Unknown Podcast',
           artistName: nextEpisode.artistName || 'Unknown Artist',
-          artworkUrl600: nextEpisode.artwork || currentPodcast?.artworkUrl600 || '',
-          artworkUrl100: nextEpisode.artwork || currentPodcast?.artworkUrl100 || '',
+          artworkUrl600: nextEpisode.artwork || '',
+          artworkUrl100: nextEpisode.artwork || '',
           feedUrl: '',
           trackCount: 0,
           releaseDate: '',
@@ -936,14 +938,16 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       const nextEpisode = queue[0];
       setQueue(prev => prev.slice(1));
 
-      let podcastToUse = currentPodcast;
-      if (nextEpisode.podcastTitle || nextEpisode.artistName) {
+      let podcastToUse: Podcast;
+      if (currentPodcast && nextEpisode.podcastTitle && currentPodcast.collectionName === nextEpisode.podcastTitle) {
+        podcastToUse = currentPodcast;
+      } else {
         podcastToUse = {
           collectionId: -1,
           collectionName: nextEpisode.podcastTitle || 'Unknown Podcast',
           artistName: nextEpisode.artistName || 'Unknown Artist',
-          artworkUrl600: nextEpisode.artwork || currentPodcast?.artworkUrl600 || '',
-          artworkUrl100: nextEpisode.artwork || currentPodcast?.artworkUrl100 || '',
+          artworkUrl600: nextEpisode.artwork || '',
+          artworkUrl100: nextEpisode.artwork || '',
           feedUrl: '',
           trackCount: 0,
           releaseDate: '',
@@ -1026,7 +1030,19 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     skipBackward,
     togglePlaybackSpeed,
     changePlaybackRate,
-    addToQueue: (ep: Episode) => setQueue(q => [...q, ep]),
+    addToQueue: (ep: Episode, podcast?: Podcast) => setQueue(q => {
+      const podcastTitle = ep.podcastTitle || (ep as any).parentPodcast?.collectionName || podcast?.collectionName;
+      const artistName = ep.artistName || (ep as any).parentPodcast?.artistName || podcast?.artistName;
+      const artwork = ep.artwork || (ep as any).parentPodcast?.artworkUrl600 || podcast?.artworkUrl600 || podcast?.artworkUrl100;
+
+      const enrichedEp: Episode = {
+        ...ep,
+        podcastTitle: podcastTitle || ep.podcastTitle,
+        artistName: artistName || ep.artistName,
+        artwork: artwork || ep.artwork,
+      };
+      return [...q, enrichedEp];
+    }),
     setQueue,
     playNext,
     playPrevious,

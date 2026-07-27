@@ -203,7 +203,7 @@ export default function LatestFollowedEpisodes() {
                     onPress={(e) => {
                       e.stopPropagation();
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      addToQueue(item);
+                      addToQueue(item, item.parentPodcast);
                     }}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
