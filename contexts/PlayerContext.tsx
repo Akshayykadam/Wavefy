@@ -96,7 +96,9 @@ const setupPlayer = async () => {
         Capability.SkipToNext,
         Capability.SkipToPrevious,
       ],
-      compactCapabilities: [Capability.SkipToPrevious, Capability.Play, Capability.Pause, Capability.SkipToNext],
+      compactCapabilities: [Capability.JumpBackward, Capability.Play, Capability.Pause, Capability.JumpForward],
+      forwardJumpInterval: 10,
+      backwardJumpInterval: 10,
       progressUpdateEventInterval: 2,
     });
   } catch (error) {
@@ -1007,33 +1009,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   }, []);
 
-  useTrackPlayerEvents(
-    [
-      TrackPlayerEvent.RemotePlay,
-      TrackPlayerEvent.RemotePause,
-      TrackPlayerEvent.RemoteNext,
-      TrackPlayerEvent.RemotePrevious,
-      TrackPlayerEvent.RemoteJumpForward,
-      TrackPlayerEvent.RemoteJumpBackward,
-    ],
-    async (event) => {
-      if (event.type === TrackPlayerEvent.RemotePlay) {
-        setIsPlaying(true);
-        TrackPlayer.play().catch(() => {});
-      } else if (event.type === TrackPlayerEvent.RemotePause) {
-        setIsPlaying(false);
-        TrackPlayer.pause().catch(() => {});
-      } else if (event.type === TrackPlayerEvent.RemoteNext) {
-        playNext();
-      } else if (event.type === TrackPlayerEvent.RemotePrevious) {
-        playPrevious();
-      } else if (event.type === TrackPlayerEvent.RemoteJumpForward) {
-        skipForward();
-      } else if (event.type === TrackPlayerEvent.RemoteJumpBackward) {
-        skipBackward();
-      }
-    }
-  );
+
 
 
 

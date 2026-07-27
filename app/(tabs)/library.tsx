@@ -347,7 +347,7 @@ export default function LibraryScreen() {
         {/* Tab bar */}
         <ScrollView
           horizontal
-          style={{ flexGrow: 0 }}
+          style={{ flexGrow: 0, minHeight: 52 }}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabContainer}
         >
@@ -582,15 +582,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 4,
+    paddingTop: 6,
+    paddingBottom: 10,
     marginBottom: 8,
     position: 'relative',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
   },
   tabButton: {
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     marginRight: 4,
     justifyContent: 'center',
@@ -598,13 +598,14 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 15,
+    lineHeight: 20,
     fontWeight: '600',
     color: Colors.secondaryText,
-    letterSpacing: -0.2,
-    lineHeight: 22,
+    includeFontPadding: false,
   },
   activeTabText: {
     color: Colors.primaryText,
+    fontWeight: '700',
   },
   tabIndicator: {
     position: 'absolute',
