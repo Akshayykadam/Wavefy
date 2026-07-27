@@ -1,4 +1,4 @@
-package com.akshaykadam.wavefy
+package com.akshayysk.wavefy
 
 import expo.modules.splashscreen.SplashScreenManager
 
