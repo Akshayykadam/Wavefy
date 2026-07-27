@@ -52,11 +52,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     hasInitialized.current = true;
 
     (async () => {
-      // Set up notification permissions + Android channel
-      await setupNotifications();
+      // Check if onboarding is complete before requesting notification permissions
+      const onboardingDone = await AsyncStorage.getItem('@castbee_onboarding_complete');
+      if (onboardingDone === 'true') {
+        // Set up notification permissions + Android channel
+        await setupNotifications();
 
-      // Register background fetch task
-      await registerBackgroundFetch();
+        // Register background fetch task
+        await registerBackgroundFetch();
+      }
 
       // Configure how notifications are displayed when app is in foreground
       Notifications.setNotificationHandler({

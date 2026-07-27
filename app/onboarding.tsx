@@ -15,60 +15,52 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import {
+  Sparkles,
   Headphones,
-  Radio,
-  Download,
   Bell,
-  Heart,
-  ListMusic,
-  Search,
-  Wifi,
-  Play,
-  ChevronRight,
+  ArrowRight,
+  Download,
+  Sliders,
+  Radio,
+  Zap,
 } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import Colors from '@/constants/colors';
+import { setupNotifications, registerBackgroundFetch } from '@/utils/backgroundNotifications';
 
 const { width, height } = Dimensions.get('window');
 
 const ONBOARDING_KEY = '@castbee_onboarding_complete';
 
-interface OnboardingPage {
+interface OnboardingItem {
   id: string;
+  badge: string;
   title: string;
-  subtitle: string;
+  highlightText: string;
   description: string;
-  gradient: string[];
-  iconColor: string;
 }
 
-const PAGES: OnboardingPage[] = [
+const PAGES: OnboardingItem[] = [
   {
     id: '1',
-    title: 'Discover\nPodcasts',
-    subtitle: 'Your audio universe awaits',
-    description:
-      'Explore thousands of podcasts across every genre — from true crime to tech, comedy to culture.',
-    gradient: ['#FF3B30', '#FF6B6B'],
-    iconColor: '#FF3B30',
+    badge: 'CASTBEE PODCASTS',
+    title: 'Stories that',
+    highlightText: 'buzz.',
+    description: 'Explore millions of podcasts, trending charts, and daily releases tailored to your taste.',
   },
   {
     id: '2',
-    title: 'Listen\nYour Way',
-    subtitle: 'Built for how you listen',
-    description:
-      'Download for offline, build playlists, adjust playback speed, and pick up right where you left off.',
-    gradient: ['#FF6B6B', '#FF3B30'],
-    iconColor: '#FF6B6B',
+    badge: 'TAILORED LISTENING',
+    title: 'Audio on your',
+    highlightText: 'terms.',
+    description: 'Seamless offline downloads, custom playback queueing, and smart speed controls.',
   },
   {
     id: '3',
-    title: 'Stay in\nthe Loop',
-    subtitle: 'Never miss an episode',
-    description:
-      'Follow your favorites and get notified when new episodes drop. Your feed, always fresh.',
-    gradient: ['#FF3B30', '#FF6B6B'],
-    iconColor: '#FF3B30',
+    badge: 'STAY CONNECTED',
+    title: 'Never miss an',
+    highlightText: 'episode.',
+    description: 'Follow your favorite creators and get notified the moment fresh episodes drop.',
   },
 ];
 
@@ -78,24 +70,13 @@ export default function OnboardingScreen() {
   const scrollX = useRef(new Animated.Value(0)).current;
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Fade-in animations for each page
-  const fadeAnims = useRef(PAGES.map(() => new Animated.Value(0))).current;
-
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index != null) {
-        const idx = viewableItems[0].index;
-        setCurrentIndex(idx);
-        // Animate in the new page content
-        fadeAnims[idx].setValue(0);
-        Animated.timing(fadeAnims[idx], {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }).start();
+        setCurrentIndex(viewableItems[0].index);
       }
     },
-    [fadeAnims]
+    []
   );
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
@@ -115,161 +96,122 @@ export default function OnboardingScreen() {
   };
 
   const completeOnboarding = async () => {
-    await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
-    router.replace('/(tabs)');
+    try {
+      // 1. Save onboarding completion status
+      await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+      
+      // 2. ONLY NOW request notification permissions after completing onboarding
+      await setupNotifications();
+      await registerBackgroundFetch();
+    } catch (e) {
+      console.error('[Onboarding] Completion error:', e);
+    } finally {
+      // 3. Navigate to main tabs
+      router.replace('/(tabs)');
+    }
   };
 
-  const renderPageIcon = (pageIndex: number) => {
-    const iconSize = 36;
-    const iconColor = 'rgba(255,255,255,0.9)';
-
-    if (pageIndex === 0) {
+  const renderVisual = (index: number) => {
+    if (index === 0) {
       return (
-        <View style={styles.iconGrid}>
-          <View style={[styles.iconCircle, { backgroundColor: 'rgba(255,59,48,0.15)' }]}>
+        <View style={styles.visualContainer}>
+          {/* Ambient Glow */}
+          <View style={styles.glowBg} />
+          <View style={styles.heroCard}>
             <Image
               source={require('@/assets/images/icon.png')}
-              style={{ width: 80, height: 80, borderRadius: 20 }}
+              style={styles.logoImage}
               contentFit="cover"
             />
           </View>
-          <View style={styles.iconRow}>
-            <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255,59,48,0.12)' }]}>
-              <Search color={Colors.accent} size={22} />
+          {/* Subtle floating pills */}
+          <View style={styles.floatingPillContainer}>
+            <View style={styles.pillTag}>
+              <Sparkles size={12} color={Colors.accent} />
+              <Text style={styles.pillTagText}>Trending Shows</Text>
             </View>
-            <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255,59,48,0.12)' }]}>
-              <Radio color={Colors.accentAlt} size={22} />
-            </View>
-            <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255,59,48,0.12)' }]}>
-              <Headphones color={Colors.accent} size={22} />
+            <View style={[styles.pillTag, { backgroundColor: Colors.surfaceElevated }]}>
+              <Radio size={12} color={Colors.accentAlt} />
+              <Text style={styles.pillTagText}>High Quality</Text>
             </View>
           </View>
         </View>
       );
     }
 
-    if (pageIndex === 1) {
+    if (index === 1) {
       return (
-        <View style={styles.iconGrid}>
-          <View style={styles.iconRow}>
-            <View style={[styles.featureCard]}>
-              <Download color={Colors.accent} size={28} />
-              <Text style={styles.featureLabel}>Offline</Text>
+        <View style={styles.visualContainer}>
+          <View style={[styles.glowBg, { backgroundColor: 'rgba(255, 107, 107, 0.12)' }]} />
+          <View style={styles.featureGrid}>
+            <View style={styles.featureRow}>
+              <View style={styles.featureBox}>
+                <Download size={24} color={Colors.accent} />
+                <Text style={styles.featureBoxTitle}>Offline</Text>
+                <Text style={styles.featureBoxSub}>Listen anywhere</Text>
+              </View>
+              <View style={styles.featureBox}>
+                <Sliders size={24} color={Colors.accentAlt} />
+                <Text style={styles.featureBoxTitle}>Speed</Text>
+                <Text style={styles.featureBoxSub}>0.5x to 3.0x</Text>
+              </View>
             </View>
-            <View style={[styles.featureCard]}>
-              <ListMusic color={Colors.accentAlt} size={28} />
-              <Text style={styles.featureLabel}>Playlists</Text>
-            </View>
-          </View>
-          <View style={styles.iconRow}>
-            <View style={[styles.featureCard]}>
-              <Play color={Colors.accent} size={28} />
-              <Text style={styles.featureLabel}>Resume</Text>
-            </View>
-            <View style={[styles.featureCard]}>
-              <Wifi color={Colors.accentAlt} size={28} />
-              <Text style={styles.featureLabel}>Stream</Text>
+            <View style={styles.featureRow}>
+              <View style={styles.featureBox}>
+                <Headphones size={24} color={Colors.accentAlt} />
+                <Text style={styles.featureBoxTitle}>Auto-Queue</Text>
+                <Text style={styles.featureBoxSub}>Continuous audio</Text>
+              </View>
+              <View style={styles.featureBox}>
+                <Zap size={24} color={Colors.accent} />
+                <Text style={styles.featureBoxTitle}>Instant</Text>
+                <Text style={styles.featureBoxSub}>Zero buffering</Text>
+              </View>
             </View>
           </View>
         </View>
       );
     }
 
-    // Page 3
+    // Index 2
     return (
-      <View style={styles.iconGrid}>
-        <View style={[styles.iconCircle, { backgroundColor: 'rgba(255,59,48,0.15)' }]}>
-          <Bell color={Colors.accent} size={48} />
-        </View>
-        <View style={styles.iconRow}>
-          <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255,59,48,0.12)' }]}>
-            <Heart color={Colors.accentAlt} size={22} />
+      <View style={styles.visualContainer}>
+        <View style={styles.glowBg} />
+        <View style={styles.bellCard}>
+          <View style={styles.bellIconCircle}>
+            <Bell size={44} color={Colors.accent} />
           </View>
-          <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255,59,48,0.12)' }]}>
-            <Bell color={Colors.accent} size={22} />
-          </View>
-          <View style={[styles.smallIconCircle, { backgroundColor: 'rgba(255,59,48,0.12)' }]}>
-            <Radio color={Colors.accentAlt} size={22} />
+          <View style={styles.notificationPreview}>
+            <View style={styles.notifDot} />
+            <Text style={styles.notifText}>New Episode Out Now</Text>
           </View>
         </View>
       </View>
     );
   };
 
-  const renderPage = ({ item, index }: { item: OnboardingPage; index: number }) => {
+  const renderPage = ({ item, index }: { item: OnboardingItem; index: number }) => {
     return (
-      <View style={[styles.page]}>
-        <Animated.View
-          style={[
-            styles.pageContent,
-            {
-              opacity: fadeAnims[index],
-              transform: [
-                {
-                  translateY: fadeAnims[index].interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [30, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          {/* Visual area */}
-          <View style={styles.visualArea}>{renderPageIcon(index)}</View>
+      <View style={styles.page}>
+        {/* Upper visual display */}
+        <View style={styles.visualSection}>{renderVisual(index)}</View>
 
-          {/* Text area */}
-          <View style={styles.textArea}>
-            <Text style={styles.pageSubtitle}>{item.subtitle}</Text>
-            <Text style={styles.pageTitle}>{item.title}</Text>
-            <Text style={styles.pageDescription}>{item.description}</Text>
+        {/* Lower typography section */}
+        <View style={styles.textSection}>
+          <View style={styles.badgeView}>
+            <Text style={styles.badgeText}>{item.badge}</Text>
           </View>
-        </Animated.View>
+
+          <Text style={styles.titleText}>
+            {item.title}{' '}
+            <Text style={styles.highlightText}>{item.highlightText}</Text>
+          </Text>
+
+          <Text style={styles.descriptionText}>{item.description}</Text>
+        </View>
       </View>
     );
   };
-
-  const renderDots = () => {
-    return (
-      <View style={styles.dotContainer}>
-        {PAGES.map((_, i) => {
-          const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
-          const dotWidth = scrollX.interpolate({
-            inputRange,
-            outputRange: [8, 24, 8],
-            extrapolate: 'clamp',
-          });
-          const dotOpacity = scrollX.interpolate({
-            inputRange,
-            outputRange: [0.3, 1, 0.3],
-            extrapolate: 'clamp',
-          });
-          return (
-            <Animated.View
-              key={i}
-              style={[
-                styles.dot,
-                {
-                  width: dotWidth,
-                  opacity: dotOpacity,
-                  backgroundColor: Colors.accent,
-                },
-              ]}
-            />
-          );
-        })}
-      </View>
-    );
-  };
-
-  // Trigger initial animation
-  React.useEffect(() => {
-    Animated.timing(fadeAnims[0], {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true,
-    }).start();
-  }, []);
 
   const isLastPage = currentIndex === PAGES.length - 1;
 
@@ -277,14 +219,26 @@ export default function OnboardingScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        {/* Skip button */}
-        {!isLastPage && (
-          <Pressable style={styles.skipButton} onPress={handleSkip}>
-            <Text style={styles.skipText}>Skip</Text>
-          </Pressable>
-        )}
+        {/* Top Header */}
+        <View style={styles.header}>
+          <View style={styles.brandRow}>
+            <View style={styles.smallDot} />
+            <Text style={styles.brandName}>CastBee</Text>
+          </View>
+          {!isLastPage && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.skipBtn,
+                pressed && { opacity: 0.6 },
+              ]}
+              onPress={handleSkip}
+            >
+              <Text style={styles.skipBtnText}>Skip</Text>
+            </Pressable>
+          )}
+        </View>
 
-        {/* Pages */}
+        {/* Swipeable Pages */}
         <FlatList
           ref={flatListRef}
           data={PAGES}
@@ -308,26 +262,52 @@ export default function OnboardingScreen() {
           })}
         />
 
-        {/* Bottom controls */}
-        <View style={styles.bottomControls}>
-          {renderDots()}
+        {/* Bottom Bar Controls */}
+        <View style={styles.footer}>
+          {/* Pagination Indicators */}
+          <View style={styles.paginationRow}>
+            {PAGES.map((_, i) => {
+              const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
+              const dotWidth = scrollX.interpolate({
+                inputRange,
+                outputRange: [6, 20, 6],
+                extrapolate: 'clamp',
+              });
+              const opacity = scrollX.interpolate({
+                inputRange,
+                outputRange: [0.25, 1, 0.25],
+                extrapolate: 'clamp',
+              });
 
+              return (
+                <Animated.View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    {
+                      width: dotWidth,
+                      opacity,
+                      backgroundColor: Colors.accent,
+                    },
+                  ]}
+                />
+              );
+            })}
+          </View>
+
+          {/* Action Button */}
           <Pressable
             style={({ pressed }) => [
-              styles.nextButton,
+              styles.primaryButton,
               isLastPage && styles.getStartedButton,
-              pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+              pressed && styles.buttonPressed,
             ]}
             onPress={handleNext}
           >
-            {isLastPage ? (
-              <Text style={styles.getStartedText}>Get Started</Text>
-            ) : (
-              <View style={styles.nextContent}>
-                <Text style={styles.nextText}>Next</Text>
-                <ChevronRight color="#fff" size={18} />
-              </View>
-            )}
+            <Text style={styles.buttonText}>
+              {isLastPage ? 'Get Started' : 'Continue'}
+            </Text>
+            <ArrowRight size={18} color="#FFF" style={{ marginLeft: 6 }} />
           </Pressable>
         </View>
       </SafeAreaView>
@@ -338,160 +318,255 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
   },
   safeArea: {
     flex: 1,
   },
-  skipButton: {
-    position: 'absolute',
-    top: 60,
-    right: 24,
-    zIndex: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 28,
+    paddingTop: 12,
+    height: 48,
   },
-  skipText: {
-    color: Colors.secondaryText,
-    fontSize: 16,
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  smallDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.accent,
+  },
+  brandName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.primaryText,
+    letterSpacing: -0.3,
+  },
+  skipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  skipBtnText: {
+    fontSize: 13,
     fontWeight: '600',
+    color: Colors.secondaryText,
   },
   page: {
     width,
     flex: 1,
+    paddingHorizontal: 28,
+    justifyContent: 'space-between',
+    paddingBottom: 16,
+  },
+  visualSection: {
+    flex: 1.2,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
   },
-  pageContent: {
+  visualContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  glowBg: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: Colors.accentGlow20,
+  },
+  heroCard: {
+    width: 130,
+    height: 130,
+    borderRadius: 36,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  logoImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 24,
+  },
+  floatingPillContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+  },
+  pillTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  pillTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.primaryText,
+  },
+  featureGrid: {
+    width: '100%',
+    gap: 12,
+    paddingHorizontal: 8,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  featureBox: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 20,
+    padding: 16,
+    gap: 6,
   },
-  visualArea: {
-    height: height * 0.35,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 16,
+  featureBoxTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Colors.primaryText,
+    marginTop: 4,
   },
-  iconGrid: {
+  featureBoxSub: {
+    fontSize: 12,
+    color: Colors.secondaryText,
+    fontWeight: '500',
+  },
+  bellCard: {
     alignItems: 'center',
     gap: 20,
   },
-  iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+  bellIconCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: Colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,59,48,0.2)',
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
   },
-  iconRow: {
+  notificationPreview: {
     flexDirection: 'row',
-    gap: 16,
-    justifyContent: 'center',
-  },
-  smallIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,59,48,0.15)',
-  },
-  featureCard: {
-    width: (width - 96) / 2,
-    height: 90,
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: 16,
-    justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
+    backgroundColor: Colors.surfaceLight,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  featureLabel: {
-    color: Colors.secondaryText,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  textArea: {
-    alignItems: 'center',
-    paddingHorizontal: 8,
-  },
-  pageSubtitle: {
-    color: Colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 12,
-  },
-  pageTitle: {
-    color: Colors.primaryText,
-    fontSize: 36,
-    fontWeight: '800',
-    textAlign: 'center',
-    lineHeight: 42,
-    letterSpacing: -0.5,
-    marginBottom: 16,
-  },
-  pageDescription: {
-    color: Colors.secondaryText,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-    maxWidth: 300,
-  },
-  bottomControls: {
-    paddingHorizontal: 32,
-    paddingBottom: 24,
-    gap: 28,
-    alignItems: 'center',
-  },
-  dotContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dot: {
+  notifDot: {
+    width: 8,
     height: 8,
     borderRadius: 4,
+    backgroundColor: Colors.accent,
   },
-  nextButton: {
-    width: '100%',
+  notifText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primaryText,
+  },
+  textSection: {
+    flex: 0.9,
+    justifyContent: 'flex-start',
+  },
+  badgeView: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,59,48,0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Colors.accent,
+    letterSpacing: 1.2,
+  },
+  titleText: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: Colors.primaryText,
+    lineHeight: 40,
+    letterSpacing: -0.5,
+    marginBottom: 12,
+  },
+  highlightText: {
+    color: Colors.accent,
+  },
+  descriptionText: {
+    fontSize: 15,
+    lineHeight: 23,
+    color: Colors.secondaryText,
+    fontWeight: '400',
+  },
+  footer: {
+    paddingHorizontal: 28,
+    paddingBottom: 24,
+    gap: 20,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  primaryButton: {
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.surfaceLight,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: Colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: Colors.borderLight,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   getStartedButton: {
     backgroundColor: Colors.accent,
     borderColor: Colors.accent,
   },
-  nextContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  buttonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.985 }],
   },
-  nextText: {
-    color: Colors.primaryText,
-    fontSize: 17,
+  buttonText: {
+    fontSize: 16,
     fontWeight: '700',
-  },
-  getStartedText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
   },
 });
