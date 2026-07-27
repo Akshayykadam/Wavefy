@@ -236,9 +236,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <SafeAreaView edges={["top"]} style={styles.safeArea}>
         <View style={styles.header}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{getGreeting()}</Text>
-          </View>
+          <View style={styles.titleContainer} />
           <View style={styles.headerButtons}>
             <Pressable
               onPress={() => {
