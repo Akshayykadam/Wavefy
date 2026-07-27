@@ -90,8 +90,8 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
 
         const callback = (downloadProgress: any) => {
             const now = Date.now();
-            // Throttle re-renders to at most once per second per episode
-            if (now - (downloadProgressThrottle.current[episode.id] || 0) < 1000) return;
+            // Throttle re-renders for smooth circular progress updates (5 FPS)
+            if (now - (downloadProgressThrottle.current[episode.id] || 0) < 200) return;
             downloadProgressThrottle.current[episode.id] = now;
 
             const calculatedProgress = downloadProgress.totalBytesExpectedToWrite > 0

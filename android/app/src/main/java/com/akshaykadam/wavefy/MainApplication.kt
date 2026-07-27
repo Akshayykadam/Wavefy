@@ -1,4 +1,4 @@
-package com.akshayysk.wavefy
+package com.akshaykadam.wavefy
 
 import android.app.Application
 import android.content.res.Configuration

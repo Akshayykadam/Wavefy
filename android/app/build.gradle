@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.akshayysk.wavefy'
+    namespace 'com.akshaykadam.wavefy'
     defaultConfig {
-        applicationId 'com.akshayysk.wavefy'
+        applicationId 'com.akshaykadam.wavefy'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

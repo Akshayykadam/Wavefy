@@ -52,6 +52,7 @@ import ChapterList from "@/components/ChapterList";
 import ShowNotesSheet from "@/components/ShowNotesSheet";
 import { usePlaylist } from "@/contexts/PlaylistContext";
 import RecommendedPodcasts from "@/components/RecommendedPodcasts";
+import CircularProgress from "@/components/CircularProgress";
 
 const { width } = Dimensions.get("window");
 
@@ -334,7 +335,12 @@ export default function PlayerScreen() {
                 style={styles.actionButton}
               >
                 {getDownloadProgress(currentEpisode.id) > 0 && getDownloadProgress(currentEpisode.id) < 100 ? (
-                  <ActivityIndicator size="small" color={Colors.accent} />
+                  <CircularProgress
+                    size={24}
+                    strokeWidth={2.5}
+                    progress={getDownloadProgress(currentEpisode.id)}
+                    color={Colors.accent}
+                  />
                 ) : isDownloaded(currentEpisode.id) ? (
                   <Check color={Colors.accent} size={22} />
                 ) : (
@@ -643,7 +649,9 @@ export default function PlayerScreen() {
             >
               {getDownloadProgress(currentEpisode.id) > 0 && getDownloadProgress(currentEpisode.id) < 100 ? (
                 <>
-                  <ActivityIndicator size="small" color={Colors.primaryText} style={{ marginRight: 8 }} />
+                  <View style={{ marginRight: 10 }}>
+                    <CircularProgress size={20} strokeWidth={2.5} progress={getDownloadProgress(currentEpisode.id)} color={Colors.accent} />
+                  </View>
                   <Text style={styles.menuButtonText}>Downloading...</Text>
                 </>
               ) : isDownloaded(currentEpisode.id) ? (

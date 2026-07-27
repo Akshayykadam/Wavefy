@@ -26,6 +26,7 @@ import { useNetwork } from "@/contexts/NetworkContext";
 import { getOptimizedArtwork } from "@/utils/image";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import RecommendedPodcasts from "@/components/RecommendedPodcasts";
+import CircularProgress from "@/components/CircularProgress";
 
 const { width } = Dimensions.get("window");
 
@@ -144,7 +145,7 @@ const MemoizedEpisodeRow = React.memo(({
         disabled={downloaded || isDownloading}
       >
         {isDownloading ? (
-          <ActivityIndicator size="small" color={Colors.accent} />
+          <CircularProgress size={20} strokeWidth={2.5} progress={progress} color={Colors.accent} />
         ) : downloaded ? (
           <Check size={18} color={Colors.accent} />
         ) : (

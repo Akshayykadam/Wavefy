@@ -1,4 +1,5 @@
-package com.akshayysk.wavefy
+package com.akshaykadam.wavefy
+
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
