@@ -227,7 +227,7 @@ export default function ProfileScreen() {
           </View>
 
           {/* App version */}
-          <Text style={styles.versionText}>Wavefy v2.0.1</Text>
+          <Text style={styles.versionText}>Wavefy v1.0.0</Text>
         </ScrollView>
       </SafeAreaView>
     </View>

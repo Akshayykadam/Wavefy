@@ -1,7 +1,7 @@
 {
   "name": "wavefy",
   "main": "index.js",
-  "version": "2.0.1",
+  "version": "1.0.0",
   "scripts": {
     "start": "npx expo start",
     "start-c": "npx expo start -c",
