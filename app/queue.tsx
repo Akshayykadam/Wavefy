@@ -67,7 +67,16 @@ export default function QueueScreen() {
 
   // Get upcoming episodes from same podcast
   const getUpNextEpisodes = (): Episode[] => {
-    if (!currentEpisode || !podcastEpisodes || podcastEpisodes.length === 0) return [];
+    if (!currentEpisode || !currentPodcast || !podcastEpisodes || podcastEpisodes.length === 0) return [];
+    
+    // Ensure that cached podcastEpisodes actually belong to currentPodcast
+    const sampleEp = podcastEpisodes[0];
+    const isMatchingPodcast = sampleEp.podcastTitle
+      ? sampleEp.podcastTitle === currentPodcast.collectionName
+      : (sampleEp.artwork === currentPodcast.artworkUrl600 || sampleEp.artwork === currentPodcast.artworkUrl100);
+
+    if (!isMatchingPodcast) return [];
+
     const currentIndex = podcastEpisodes.findIndex(e => e.id === currentEpisode.id);
     if (currentIndex === -1) return podcastEpisodes.slice(0, 5);
     return podcastEpisodes.slice(currentIndex + 1, currentIndex + 6);
@@ -127,31 +136,49 @@ export default function QueueScreen() {
     );
   };
 
-  const renderUpNextItem = ({ item }: { item: Episode }) => (
-    <Pressable
-      style={({ pressed }) => [styles.queueItem, pressed && { opacity: 0.7 }]}
-      onPress={() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (currentPodcast) {
-          playEpisode(item, currentPodcast);
-        }
-      }}
-    >
-      <Image
-        source={{ uri: item.artwork || currentPodcast?.artworkUrl600 }}
-        style={styles.queueArtwork}
-        contentFit="cover"
-      />
-      <View style={styles.queueInfo}>
-        <Text style={styles.queueTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
-        <Text style={styles.queueSubtitle} numberOfLines={1} textBreakStrategy="simple">
-          {currentPodcast?.collectionName}
-          {item.duration > 0 ? ` · ${formatDuration(item.duration)}` : ''}
-        </Text>
-      </View>
-      <Play color={Colors.secondaryText} size={16} />
-    </Pressable>
-  );
+  const renderUpNextItem = ({ item }: { item: Episode }) => {
+    const isSamePodcastAsCurrent = !!(currentPodcast && item.podcastTitle && currentPodcast.collectionName === item.podcastTitle);
+    const itemArtwork = item.artwork || (isSamePodcastAsCurrent ? currentPodcast?.artworkUrl600 : '');
+    const itemPodcastTitle = item.podcastTitle || (isSamePodcastAsCurrent ? currentPodcast?.collectionName : 'Unknown Podcast');
+
+    return (
+      <Pressable
+        style={({ pressed }) => [styles.queueItem, pressed && { opacity: 0.7 }]}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          const podcastToUse = isSamePodcastAsCurrent && currentPodcast
+            ? currentPodcast
+            : {
+                collectionId: -1,
+                collectionName: itemPodcastTitle,
+                artistName: item.artistName || '',
+                artworkUrl600: itemArtwork,
+                artworkUrl100: itemArtwork,
+                feedUrl: '',
+                trackCount: 0,
+                releaseDate: '',
+                primaryGenreName: '',
+                collectionViewUrl: '',
+              };
+          playEpisode(item, podcastToUse);
+        }}
+      >
+        <Image
+          source={{ uri: itemArtwork }}
+          style={styles.queueArtwork}
+          contentFit="cover"
+        />
+        <View style={styles.queueInfo}>
+          <Text style={styles.queueTitle} numberOfLines={2} textBreakStrategy="simple">{item.title}</Text>
+          <Text style={styles.queueSubtitle} numberOfLines={1} textBreakStrategy="simple">
+            {itemPodcastTitle}
+            {item.duration > 0 ? ` · ${formatDuration(item.duration)}` : ''}
+          </Text>
+        </View>
+        <Play color={Colors.secondaryText} size={16} />
+      </Pressable>
+    );
+  };
 
   return (
     <View style={styles.container}>

@@ -293,10 +293,10 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         duration,
         lastPlayedAt: new Date().toISOString(),
         completed,
-        podcastTitle: podcast.collectionName,
-        podcastArtwork: podcast.artworkUrl600,
-        episodeTitle: episode.title,
-        episodeArtwork: episode.artwork,
+        podcastTitle: podcast.collectionName || episode.podcastTitle || '',
+        podcastArtwork: podcast.artworkUrl600 || podcast.artworkUrl100 || episode.artwork || '',
+        episodeTitle: episode.title || 'Untitled',
+        episodeArtwork: episode.artwork || podcast.artworkUrl600 || podcast.artworkUrl100 || '',
         audioUrl: episode.audioUrl,
         feedUrl: podcast.feedUrl,
       };
@@ -306,6 +306,24 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       return newMap;
     });
   }, []);
+
+  // Periodically update progress while playing (every 5 seconds)
+  useEffect(() => {
+    if (!isPlayerReady || !isPlaying || !currentEpisode || !currentPodcast) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const { position, duration } = await TrackPlayer.getProgress();
+        if (position > 0 && duration > 0) {
+          updateEpisodeProgress(currentEpisode, currentPodcast, position, duration);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [isPlayerReady, isPlaying, currentEpisode, currentPodcast, updateEpisodeProgress]);
 
   // Update continuation settings
   const updateContinuationSetting = useCallback(<K extends keyof ContinuationSettings>(
@@ -326,8 +344,8 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         if (p.completed) return false;
         if (p.duration <= 0) return false;
         const percent = (p.position / p.duration) * 100;
-        // Show if played more than 15 seconds, or > 0.5% of duration, and not essentially finished (> 99%)
-        return (p.position >= 15 || percent >= 0.5) && percent < 99;
+        // Show if played more than 15 seconds, or > 0.5% of duration, and not essentially finished (> 95%)
+        return (p.position >= 15 || percent >= 0.5) && percent < 95;
       })
       .sort((a, b) => new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime());
   }, [episodeProgressMap]);
@@ -488,6 +506,15 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
     setCurrentEpisode(episode);
     setCurrentPodcast(podcast);
+
+    // Auto-fetch podcast episodes for continuation & Up Next if feedUrl exists
+    if (podcast.feedUrl && !isOfflineRef.current) {
+      parseRSS(podcast.feedUrl)
+        .then(eps => {
+          if (eps && eps.length > 0) setPodcastEpisodes(eps);
+        })
+        .catch(err => console.warn('[PlayerContext] Failed to auto-sync podcastEpisodes:', err));
+    }
 
     try {
       await TrackPlayer.reset();

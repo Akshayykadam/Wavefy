@@ -39,7 +39,13 @@ export default function ContinueListeningCard({
       }}
     >
       <View style={styles.artworkContainer}>
-        <Image source={{ uri: artwork }} style={styles.artwork} contentFit="cover" transition={200} />
+        {artwork ? (
+          <Image source={{ uri: artwork }} style={styles.artwork} contentFit="cover" transition={200} />
+        ) : (
+          <View style={[styles.artwork, { justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surfaceLight }]}>
+            <Play color={Colors.secondaryText} size={32} />
+          </View>
+        )}
         {/* Circular progress ring */}
         <View style={styles.ringOverlay}>
           <Svg width={RING_SIZE} height={RING_SIZE}>
@@ -70,8 +76,8 @@ export default function ContinueListeningCard({
           </View>
         </View>
       </View>
-      <Text style={styles.episodeTitle} numberOfLines={2} textBreakStrategy="simple">{episodeTitle}</Text>
-      <Text style={styles.podcastTitle} numberOfLines={1} textBreakStrategy="simple">{podcastTitle}</Text>
+      <Text style={styles.episodeTitle} numberOfLines={2} textBreakStrategy="simple">{episodeTitle || 'Untitled Episode'}</Text>
+      <Text style={styles.podcastTitle} numberOfLines={1} textBreakStrategy="simple">{podcastTitle || 'Podcast'}</Text>
       <Text style={styles.progressText}>{progressPercent}% played</Text>
     </Pressable>
   );

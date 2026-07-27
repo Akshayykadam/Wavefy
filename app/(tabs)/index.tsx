@@ -295,7 +295,7 @@ export default function HomeScreen() {
                     key={`continue-${ep.episodeId}-${index}`}
                     episodeTitle={ep.episodeTitle || 'Untitled'}
                     podcastTitle={ep.podcastTitle || ''}
-                    artwork={ep.podcastArtwork || ep.episodeArtwork || ''}
+                    artwork={ep.episodeArtwork || ep.podcastArtwork || ''}
                     progress={ep.duration > 0 ? ep.position / ep.duration : 0}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

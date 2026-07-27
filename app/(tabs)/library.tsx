@@ -131,7 +131,8 @@ export default function LibraryScreen() {
   const onTabLayout = useCallback((index: number, x: number, w: number) => {
     tabPositions[index] = x;
     tabWidths[index] = w;
-    if (index === 0 && activeTab === 'podcasts') {
+    const activeIdx = tabIndexMap[activeTab];
+    if (index === activeIdx) {
       indicatorLeft.setValue(x);
       indicatorWidth.setValue(w);
     }
@@ -363,18 +364,18 @@ export default function LibraryScreen() {
                 style={styles.tabButton}
                 onPress={() => switchTab(key)}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={[styles.tabText, isActive && styles.activeTabText]}>{tab}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.tabText, isActive && styles.activeTabText]} textBreakStrategy="simple">{tab}</Text>
                   {key === 'downloaded' && downloadsArray.filter((d: any) => d.status === 'completed').length > 0 && (
                     <View style={styles.downloadBadge}>
-                      <Text style={styles.downloadBadgeText}>
+                      <Text style={styles.downloadBadgeText} textBreakStrategy="simple">
                         {downloadsArray.filter((d: any) => d.status === 'completed').length}
                       </Text>
                     </View>
                   )}
                   {key === 'new episodes' && newEpisodes.length > 0 && (
                     <View style={[styles.downloadBadge, { backgroundColor: Colors.accent }]}>
-                      <Text style={[styles.downloadBadgeText, { color: '#000' }]}>
+                      <Text style={[styles.downloadBadgeText, { color: '#000' }]} textBreakStrategy="simple">
                         {newEpisodes.length}
                       </Text>
                     </View>
@@ -794,17 +795,20 @@ const styles = StyleSheet.create({
     color: Colors.secondaryText,
   },
   downloadBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: Colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 5,
+    paddingHorizontal: 6,
   },
   downloadBadgeText: {
-    fontSize: 10,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '800',
     color: '#fff',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
 });
