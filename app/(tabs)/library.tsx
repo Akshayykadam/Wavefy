@@ -347,7 +347,7 @@ export default function LibraryScreen() {
         {/* Tab bar */}
         <ScrollView
           horizontal
-          style={{ flexGrow: 0, minHeight: 52 }}
+          style={{ flexGrow: 0, overflow: 'visible' }}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.tabContainer}
         >
@@ -364,8 +364,8 @@ export default function LibraryScreen() {
                 style={styles.tabButton}
                 onPress={() => switchTab(key)}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.tabText, isActive && styles.activeTabText]} textBreakStrategy="simple">{tab}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, overflow: 'visible' }}>
+                  <Text style={[styles.tabText, isActive && styles.activeTabText]}>{tab}</Text>
                   {key === 'downloaded' && downloadsArray.filter((d: any) => d.status === 'completed').length > 0 && (
                     <View style={styles.downloadBadge}>
                       <Text style={styles.downloadBadgeText} textBreakStrategy="simple">
@@ -582,26 +582,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 10,
+    paddingTop: 4,
+    paddingBottom: 12,
     marginBottom: 8,
     position: 'relative',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
+    overflow: 'visible',
   },
   tabButton: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     marginRight: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
+    overflow: 'visible',
   },
   tabText: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.secondaryText,
-    includeFontPadding: false,
   },
   activeTabText: {
     color: Colors.primaryText,
