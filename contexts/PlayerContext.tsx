@@ -83,6 +83,7 @@ const setupPlayer = async () => {
         Capability.Play,
         Capability.Pause,
         Capability.SeekTo,
+        Capability.Stop,
         Capability.JumpForward,
         Capability.JumpBackward,
         Capability.SkipToNext,
@@ -91,12 +92,17 @@ const setupPlayer = async () => {
       notificationCapabilities: [
         Capability.Play,
         Capability.Pause,
-        Capability.JumpForward,
         Capability.JumpBackward,
+        Capability.JumpForward,
         Capability.SkipToNext,
         Capability.SkipToPrevious,
       ],
-      compactCapabilities: [Capability.JumpBackward, Capability.Play, Capability.Pause, Capability.JumpForward],
+      compactCapabilities: [
+        Capability.JumpBackward,
+        Capability.Play,
+        Capability.Pause,
+        Capability.JumpForward,
+      ],
       forwardJumpInterval: 10,
       backwardJumpInterval: 10,
       progressUpdateEventInterval: 2,
@@ -157,12 +163,24 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     }
   }, [actualPlaybackState]);
 
+  const hasHandledTrackEndForId = useRef<string | null>(null);
+
   useTrackPlayerEvents([TrackPlayerEvent.PlaybackState], (event) => {
     if (event.type === TrackPlayerEvent.PlaybackState) {
       const stateObj = event.state;
       const actualState = (stateObj as any).state || stateObj;
       setIsPlaying(actualState === State.Playing);
       setIsLoading(actualState === State.Buffering || actualState === State.Loading);
+
+      if (actualState === State.Ended) {
+        if (currentEpisode?.id && hasHandledTrackEndForId.current !== String(currentEpisode.id)) {
+          hasHandledTrackEndForId.current = String(currentEpisode.id);
+          console.log('[PlayerContext] Episode ended (State.Ended), triggering handleTrackEnd');
+          setTimeout(() => {
+            handleTrackEndRef.current();
+          }, 300);
+        }
+      }
     }
   });
 
@@ -309,7 +327,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     });
   }, []);
 
-  // Periodically update progress while playing (every 5 seconds)
+  // Periodically update progress while playing (every 1 second) and detect track completion
   useEffect(() => {
     if (!isPlayerReady || !isPlaying || !currentEpisode || !currentPodcast) return;
 
@@ -318,14 +336,39 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         const { position, duration } = await TrackPlayer.getProgress();
         if (position > 0 && duration > 0) {
           updateEpisodeProgress(currentEpisode, currentPodcast, position, duration);
+
+          if (position >= duration - 1) {
+            if (currentEpisode?.id && hasHandledTrackEndForId.current !== String(currentEpisode.id)) {
+              hasHandledTrackEndForId.current = String(currentEpisode.id);
+              console.log('[PlayerContext] Track reached end via progress check, triggering handleTrackEnd');
+              setTimeout(() => {
+                handleTrackEndRef.current();
+              }, 300);
+            }
+          }
         }
       } catch (e) {
         // ignore
       }
-    }, 5000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [isPlayerReady, isPlaying, currentEpisode, currentPodcast, updateEpisodeProgress]);
+
+  useTrackPlayerEvents([TrackPlayerEvent.PlaybackProgressUpdated], (event) => {
+    if (event.type === TrackPlayerEvent.PlaybackProgressUpdated) {
+      const { position, duration } = event;
+      if (position > 0 && duration > 0 && position >= duration - 1) {
+        if (currentEpisode?.id && hasHandledTrackEndForId.current !== String(currentEpisode.id)) {
+          hasHandledTrackEndForId.current = String(currentEpisode.id);
+          console.log('[PlayerContext] Track reached end via PlaybackProgressUpdated, triggering handleTrackEnd');
+          setTimeout(() => {
+            handleTrackEndRef.current();
+          }, 300);
+        }
+      }
+    }
+  });
 
   // Update continuation settings
   const updateContinuationSetting = useCallback(<K extends keyof ContinuationSettings>(
@@ -485,6 +528,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
     hasUserInteracted.current = true;
     sleepTimerTriggeredRef.current = false; // Reset sleep timer flag
+    hasHandledTrackEndForId.current = null; // Reset track end guard for new episode
 
     // Always prefer local file if downloaded
     const localUri = getLocalUriRef.current(episode.id);
@@ -954,11 +998,13 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   // Listen for track end event
   useTrackPlayerEvents([TrackPlayerEvent.PlaybackQueueEnded], async (event) => {
     if (event.type === TrackPlayerEvent.PlaybackQueueEnded) {
-      console.log('PlayerContext - Track Ended');
-      // Small delay to ensure state is settled, then call latest ref
-      setTimeout(() => {
-        handleTrackEndRef.current();
-      }, 500);
+      if (currentEpisode?.id && hasHandledTrackEndForId.current !== String(currentEpisode.id)) {
+        hasHandledTrackEndForId.current = String(currentEpisode.id);
+        console.log('PlayerContext - Track Ended (PlaybackQueueEnded), triggering handleTrackEnd');
+        setTimeout(() => {
+          handleTrackEndRef.current();
+        }, 300);
+      }
     }
   });
 
@@ -1010,7 +1056,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   }, []);
 
   // Sync React state when lockscreen/notification controls fire
-  // The actual play/pause/seek is handled by service.ts — this just keeps UI in sync
   useTrackPlayerEvents(
     [
       TrackPlayerEvent.RemotePlay,
@@ -1022,8 +1067,10 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     ],
     async (event) => {
       if (event.type === TrackPlayerEvent.RemotePlay) {
+        TrackPlayer.play().catch(() => {});
         setIsPlaying(true);
       } else if (event.type === TrackPlayerEvent.RemotePause) {
+        TrackPlayer.pause().catch(() => {});
         setIsPlaying(false);
       } else if (event.type === TrackPlayerEvent.RemoteNext) {
         playNext();
@@ -1036,6 +1083,8 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       }
     }
   );
+
+
 
 
 

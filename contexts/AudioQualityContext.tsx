@@ -66,33 +66,8 @@ export const [AudioQualityProvider, useAudioQuality] = createContextHook(() => {
 
   const effectiveQuality = getEffectiveQuality();
 
-  // Apply track player buffer settings when quality changes
-  useEffect(() => {
-    try {
-      const interval = effectiveQuality === 'high' ? 1 : effectiveQuality === 'medium' ? 2 : 3;
-      TrackPlayer.updateOptions({
-        capabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.SeekTo,
-          Capability.JumpForward,
-          Capability.JumpBackward,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-        ],
-        notificationCapabilities: [
-          Capability.Play,
-          Capability.Pause,
-          Capability.JumpForward,
-          Capability.JumpBackward,
-          Capability.SkipToNext,
-          Capability.SkipToPrevious,
-        ],
-        compactCapabilities: [Capability.SkipToPrevious, Capability.Play, Capability.Pause, Capability.SkipToNext],
-        progressUpdateEventInterval: interval,
-      }).catch(() => {});
-    } catch {}
-  }, [effectiveQuality]);
+
+
 
   const setQualityMode = useCallback(async (mode: QualityMode) => {
     setQualityModeState(mode);

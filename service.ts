@@ -1,6 +1,6 @@
 import TrackPlayer, { Event } from 'react-native-track-player';
 
-module.exports = async function playbackService() {
+export default async function playbackService() {
     TrackPlayer.addEventListener(Event.RemotePlay, () => {
         console.log('[PlaybackService] RemotePlay');
         TrackPlayer.play().catch(err => console.warn('[PlaybackService] play error:', err));
@@ -79,4 +79,14 @@ module.exports = async function playbackService() {
             console.warn('[PlaybackService] RemotePrevious error:', err);
         }
     });
-};
+
+    TrackPlayer.addEventListener(Event.RemoteDuck, async (event) => {
+        console.log('[PlaybackService] RemoteDuck:', event);
+        if (event.permanent || event.paused) {
+            TrackPlayer.pause().catch(err => console.warn('[PlaybackService] duck pause error:', err));
+        } else {
+            TrackPlayer.play().catch(err => console.warn('[PlaybackService] duck play error:', err));
+        }
+    });
+}
+
