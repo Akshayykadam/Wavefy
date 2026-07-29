@@ -183,7 +183,6 @@ export default function PodcastDetailScreen() {
         const data = await response.json();
         return (data.results?.[0] || null) as Podcast;
       } catch (e) {
-        console.error('Error fetching podcast details:', e);
         return null;
       }
     },

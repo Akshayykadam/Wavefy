@@ -76,7 +76,6 @@ export default function SettingsScreen() {
       
       setCacheSize(formatBytes(totalBytes));
     } catch (error) {
-      console.error('Failed to calculate cache size:', error);
       setCacheSize("Unknown");
     }
   };

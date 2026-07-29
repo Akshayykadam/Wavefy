@@ -96,7 +96,7 @@ export default function OnboardingScreen() {
       await setupNotifications();
       await registerBackgroundFetch();
     } catch (e) {
-      console.error('[Onboarding] Completion error:', e);
+      // silent catch
     } finally {
       // 3. Navigate to main tabs
       router.replace('/(tabs)');

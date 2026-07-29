@@ -33,7 +33,7 @@ export const [EpisodeProgressProvider, useEpisodeProgress] = createContextHook((
                 setProgressMap(JSON.parse(stored));
             }
         } catch (error) {
-            console.error('Failed to load episode progress:', error);
+            // silent catch
         } finally {
             setIsLoaded(true);
         }
@@ -43,7 +43,7 @@ export const [EpisodeProgressProvider, useEpisodeProgress] = createContextHook((
         try {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newProgressMap));
         } catch (error) {
-            console.error('Failed to save episode progress:', error);
+            // silent catch
         }
     };
 
@@ -109,15 +109,6 @@ export const [EpisodeProgressProvider, useEpisodeProgress] = createContextHook((
             const updated = { ...existing, completed: true };
             const newMap = { ...prev, [episodeId]: updated };
             saveProgress(newMap);
-
-            // Log analytics event
-            console.log('[Analytics] Episode Completed:', {
-                episodeId,
-                podcastId: existing.podcastId,
-                podcastTitle: existing.podcastTitle,
-                timestamp: new Date().toISOString(),
-            });
-
             return newMap;
         });
     }, []);

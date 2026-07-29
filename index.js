@@ -7,7 +7,7 @@ import { ExpoRoot } from 'expo-router';
 TrackPlayer.registerPlaybackService(() => playbackService);
 
 // Invoke playbackService immediately so event listeners register on app launch
-playbackService().catch(err => console.warn('playbackService init error:', err));
+playbackService().catch(() => {});
 
 // Must be exported or imported to be picked up
 import 'expo-router/entry';

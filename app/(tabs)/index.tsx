@@ -48,7 +48,6 @@ const fetchFeaturedPodcasts = async (mood: string): Promise<Podcast[]> => {
     const data = await response.json();
     return data.results || [];
   } catch (e) {
-    console.error('Error fetching featured podcasts:', e);
     return [];
   }
 };
@@ -62,7 +61,6 @@ const fetchPodcastsByCategory = async (category: string): Promise<Podcast[]> => 
     const data = await response.json();
     return data.results || [];
   } catch (e) {
-    console.error('Error fetching podcasts by category:', e);
     return [];
   }
 };

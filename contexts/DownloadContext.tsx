@@ -52,7 +52,7 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
                 setDownloads(sanitized);
             }
         } catch (e) {
-            console.error('Failed to load downloads', e);
+            // silent catch
         }
     };
 
@@ -133,7 +133,6 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
                 });
             }
         } catch (e) {
-            console.error('Download failed', e);
             setDownloads(prev => {
                 const failedEntry = { ...prev[episode.id], status: 'failed' as DownloadStatus, progress: 0 };
                 return { ...prev, [episode.id]: failedEntry };
@@ -159,7 +158,7 @@ export const [DownloadProvider, useDownloads] = createContextHook(() => {
                     await FileSystem.deleteAsync(entry.localUri);
                 }
             } catch (e) {
-                console.error('Failed to delete file', e);
+                // silent catch
             }
         }
 

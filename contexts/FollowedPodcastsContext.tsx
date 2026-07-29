@@ -21,7 +21,7 @@ export const [FollowedPodcastsProvider, useFollowedPodcasts] = createContextHook
                 setFollowedPodcasts(JSON.parse(stored));
             }
         } catch (error) {
-            console.error('Error loading followed podcasts:', error);
+            // silent catch
         } finally {
             setIsLoading(false);
         }
@@ -31,7 +31,7 @@ export const [FollowedPodcastsProvider, useFollowedPodcasts] = createContextHook
         try {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(podcasts));
         } catch (error) {
-            console.error('Error saving followed podcasts:', error);
+            // silent catch
         }
     };
 

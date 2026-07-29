@@ -67,7 +67,6 @@ const fetchTopPodcasts = async (
       collectionViewUrl: entry.link?.attributes?.href || '',
     }));
   } catch (e) {
-    console.error('Error fetching top podcasts:', e);
     return [];
   }
 };
@@ -97,7 +96,6 @@ const fetchTopEpisodes = async (
       podcastId: parseInt(entry['im:collection']?.id?.attributes?.['im:id'] || '0'),
     }));
   } catch (e) {
-    console.error('Error fetching top episodes:', e);
     return [];
   }
 };

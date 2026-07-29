@@ -47,7 +47,6 @@ const fetchRecommendations = async (
       (p) => !currentCollectionId || p.collectionId !== currentCollectionId
     );
   } catch (e) {
-    console.error('Error fetching recommendations:', e);
     return [];
   }
 };

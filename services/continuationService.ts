@@ -263,12 +263,7 @@ function logContinuationEvent(
     continuationType: ContinuationType,
     details: string
 ) {
-    console.log('[Analytics] Continuation Event:', {
-        fromEpisodeId,
-        continuationType,
-        details,
-        timestamp: new Date().toISOString(),
-    });
+    // Logging removed
 }
 
 /**

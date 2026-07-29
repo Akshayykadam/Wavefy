@@ -70,7 +70,6 @@ const setupPlayer = async () => {
     ) {
       // Already set up, continue to updateOptions
     } else {
-      console.warn('TrackPlayer.setupPlayer failed:', error);
       return; // Real error — don't try updateOptions
     }
   }
@@ -108,7 +107,7 @@ const setupPlayer = async () => {
       progressUpdateEventInterval: 2,
     });
   } catch (error) {
-    console.warn('TrackPlayer.updateOptions failed:', error);
+    // silent catch
   }
 };
 
@@ -175,7 +174,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       if (actualState === State.Ended) {
         if (currentEpisode?.id && hasHandledTrackEndForId.current !== String(currentEpisode.id)) {
           hasHandledTrackEndForId.current = String(currentEpisode.id);
-          console.log('[PlayerContext] Episode ended (State.Ended), triggering handleTrackEnd');
           setTimeout(() => {
             handleTrackEndRef.current();
           }, 300);
@@ -228,7 +226,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         setQueue(JSON.parse(stored));
       }
     } catch (error) {
-      console.error('Failed to load queue:', error);
+      // silent catch
     }
   };
 
@@ -247,7 +245,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         setEpisodeProgressMap(JSON.parse(stored));
       }
     } catch (error) {
-      console.error('Failed to load episode progress:', error);
+      // silent catch
     }
   };
 
@@ -259,20 +257,32 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         setContinuationSettings({ ...DEFAULT_CONTINUATION_SETTINGS, ...JSON.parse(stored) });
       }
     } catch (error) {
-      console.error('Failed to load continuation settings:', error);
+      // silent catch
     }
   };
 
   // Max entries to keep in listening history to prevent unbounded SQLite growth
   const MAX_HISTORY_SIZE = 100;
 
-  // Save Episode Progress (caps at MAX_HISTORY_SIZE to avoid large SQLite writes)
-  const saveEpisodeProgress = async (newMap: { [id: string]: EpisodeProgressData }) => {
+  const latestProgressMapRef = useRef<{ [id: string]: EpisodeProgressData }>({});
+  const lastDiskSaveTimeRef = useRef<number>(0);
+  const pendingSaveTimeoutRef = useRef<NodeJS.Timeout | number | null>(null);
+
+  useEffect(() => {
+    latestProgressMapRef.current = episodeProgressMap;
+  }, [episodeProgressMap]);
+
+  // Save Episode Progress to disk (immediate)
+  const saveEpisodeProgressImmediate = useCallback(async (newMap: { [id: string]: EpisodeProgressData }) => {
+    if (pendingSaveTimeoutRef.current) {
+      clearTimeout(pendingSaveTimeoutRef.current as any);
+      pendingSaveTimeoutRef.current = null;
+    }
+    lastDiskSaveTimeRef.current = Date.now();
     try {
       let mapToSave = newMap;
       const entries = Object.values(newMap);
       if (entries.length > MAX_HISTORY_SIZE) {
-        // Keep the most recently played entries
         const trimmed = entries
           .sort((a, b) => new Date(b.lastPlayedAt).getTime() - new Date(a.lastPlayedAt).getTime())
           .slice(0, MAX_HISTORY_SIZE);
@@ -280,16 +290,56 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       }
       await AsyncStorage.setItem(STORAGE_KEYS.EPISODE_PROGRESS, JSON.stringify(mapToSave));
     } catch (error) {
-      console.error('Failed to save episode progress:', error);
+      // silent catch
     }
-  };
+  }, []);
+
+  // Save Episode Progress to disk (throttled to max 1 write per 15s to save battery & flash wear)
+  const saveEpisodeProgressThrottled = useCallback((newMap: { [id: string]: EpisodeProgressData }, forceImmediate: boolean = false) => {
+    latestProgressMapRef.current = newMap;
+    const now = Date.now();
+    const DISK_SAVE_INTERVAL_MS = 15000;
+
+    if (forceImmediate || now - lastDiskSaveTimeRef.current >= DISK_SAVE_INTERVAL_MS) {
+      saveEpisodeProgressImmediate(newMap);
+    } else if (!pendingSaveTimeoutRef.current) {
+      const remainingTime = DISK_SAVE_INTERVAL_MS - (now - lastDiskSaveTimeRef.current);
+      pendingSaveTimeoutRef.current = setTimeout(() => {
+        pendingSaveTimeoutRef.current = null;
+        if (latestProgressMapRef.current) {
+          saveEpisodeProgressImmediate(latestProgressMapRef.current);
+        }
+      }, remainingTime);
+    }
+  }, [saveEpisodeProgressImmediate]);
+
+  // Flush pending progress to disk when app goes to background or when playback pauses
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (nextAppState.match(/inactive|background/)) {
+        if (latestProgressMapRef.current) {
+          saveEpisodeProgressImmediate(latestProgressMapRef.current);
+        }
+      }
+    };
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, [saveEpisodeProgressImmediate]);
+
+  useEffect(() => {
+    if (!isPlaying && latestProgressMapRef.current) {
+      saveEpisodeProgressImmediate(latestProgressMapRef.current);
+    }
+  }, [isPlaying, saveEpisodeProgressImmediate]);
 
   // Save Continuation Settings
   const saveContinuationSettings = async (settings: ContinuationSettings) => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.CONTINUATION_SETTINGS, JSON.stringify(settings));
     } catch (error) {
-      console.error('Failed to save continuation settings:', error);
+      // silent catch
     }
   };
 
@@ -298,7 +348,8 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     episode: Episode,
     podcast: Podcast,
     position: number,
-    duration: number
+    duration: number,
+    forceDiskSave: boolean = false
   ) => {
     if (!episode || !podcast || duration <= 0) return;
 
@@ -322,12 +373,12 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       };
 
       const newMap = { ...prev, [episode.id]: updated };
-      saveEpisodeProgress(newMap);
+      saveEpisodeProgressThrottled(newMap, forceDiskSave);
       return newMap;
     });
-  }, []);
+  }, [saveEpisodeProgressThrottled]);
 
-  // Periodically update progress while playing (every 1 second) and detect track completion
+  // Periodically update progress while playing (every 2.5 seconds) and detect track completion
   useEffect(() => {
     if (!isPlayerReady || !isPlaying || !currentEpisode || !currentPodcast) return;
 
@@ -340,7 +391,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
           if (position >= duration - 1) {
             if (currentEpisode?.id && hasHandledTrackEndForId.current !== String(currentEpisode.id)) {
               hasHandledTrackEndForId.current = String(currentEpisode.id);
-              console.log('[PlayerContext] Track reached end via progress check, triggering handleTrackEnd');
               setTimeout(() => {
                 handleTrackEndRef.current();
               }, 300);
@@ -350,7 +400,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       } catch (e) {
         // ignore
       }
-    }, 1000);
+    }, 2500);
 
     return () => clearInterval(interval);
   }, [isPlayerReady, isPlaying, currentEpisode, currentPodcast, updateEpisodeProgress]);
@@ -361,7 +411,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       if (position > 0 && duration > 0 && position >= duration - 1) {
         if (currentEpisode?.id && hasHandledTrackEndForId.current !== String(currentEpisode.id)) {
           hasHandledTrackEndForId.current = String(currentEpisode.id);
-          console.log('[PlayerContext] Track reached end via PlaybackProgressUpdated, triggering handleTrackEnd');
           setTimeout(() => {
             handleTrackEndRef.current();
           }, 300);
@@ -406,16 +455,16 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     setEpisodeProgressMap(prev => {
       const newMap = { ...prev };
       delete newMap[episodeId];
-      saveEpisodeProgress(newMap);
+      saveEpisodeProgressImmediate(newMap);
       return newMap;
     });
-  }, []);
+  }, [saveEpisodeProgressImmediate]);
 
   // Clear all history
   const clearHistory = useCallback(() => {
     setEpisodeProgressMap({});
-    saveEpisodeProgress({});
-  }, []);
+    saveEpisodeProgressImmediate({});
+  }, [saveEpisodeProgressImmediate]);
 
   // Check if episode is completed
   const isEpisodeCompleted = useCallback((episodeId: string): boolean => {
@@ -466,7 +515,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         }
       }
     } catch (e) {
-      console.warn('Failed to load player state', e);
+      // silent catch
     } finally {
       isRestoring.current = false;
     }
@@ -478,7 +527,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       AsyncStorage.multiSet([
         [STORAGE_KEYS.EPISODE, JSON.stringify(currentEpisode)],
         [STORAGE_KEYS.PODCAST, JSON.stringify(currentPodcast)],
-      ]).catch(e => console.warn('Failed to save episode state', e));
+      ]).catch(() => {});
     }
   }, [currentEpisode, currentPodcast]);
 
@@ -559,7 +608,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         .then(eps => {
           if (eps && eps.length > 0) setPodcastEpisodes(eps);
         })
-        .catch(err => console.warn('[PlayerContext] Failed to auto-sync podcastEpisodes:', err));
+        .catch(() => {});
     }
 
     try {
@@ -590,7 +639,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         setIsLoading(false);
       }
     } catch (error) {
-      console.error('[PlayerContext] playEpisode error:', error);
       if (playRequestId.current === currentReq) {
         setIsLoading(false);
         setIsPlaying(false);
@@ -601,13 +649,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         [{ text: "OK" }]
       );
     }
-
-    // Log analytics
-    console.log('[Analytics] Episode Started:', {
-      episodeId: episode.id,
-      podcastId: podcast.collectionId,
-      timestamp: new Date().toISOString(),
-    });
   }, [currentEpisode, isPlayerReady, playbackRate]);
 
   const resumeEpisode = useCallback(async (progressData: EpisodeProgressData) => {
@@ -638,7 +679,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
               finalFeedUrl = data.results[0].feedUrl;
             }
           } catch (e) {
-            console.warn('iTunes lookup failed during hydration', e);
+            // silent catch
           }
         }
 
@@ -653,7 +694,7 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
             setPodcastEpisodes(episodes);
             finalEpisode = episodes.find(e => e.id === progressData.episodeId);
           } catch (e) {
-            console.warn('Failed to hydrate from RSS', e);
+            // silent catch
           }
         }
       }
@@ -770,11 +811,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
         clearInterval(sleepTimerIntervalRef.current as NodeJS.Timeout);
         sleepTimerIntervalRef.current = null;
       }
-
-      console.log('[Analytics] Sleep Timer Triggered:', {
-        episodeId: currentEpisode?.id,
-        timestamp: new Date().toISOString(),
-      });
     }, minutes * 60 * 1000);
 
     // Set interval to tick down remaining minutes in real-time
@@ -810,7 +846,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   // Cancel sleep timer if playback is manually paused (and not because the sleep timer itself triggered the pause)
   useEffect(() => {
     if (!isPlaying && sleepTimer !== null && !sleepTimerTriggeredRef.current) {
-      console.log('[PlayerContext] Playback paused manually; canceling sleep timer.');
       cancelSleepTimer();
     }
   }, [isPlaying, sleepTimer, cancelSleepTimer]);
@@ -894,7 +929,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
   const handleTrackEnd = useCallback(async () => {
     // Don't continue if sleep timer triggered the stop
     if (sleepTimerTriggeredRef.current) {
-      console.log('[Analytics] Continuation Skipped: Sleep timer active');
       return;
     }
 
@@ -916,14 +950,8 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
           audioUrl: currentEpisode.audioUrl,
         };
         const newMap = { ...prev, [currentEpisode.id]: updated };
-        saveEpisodeProgress(newMap);
+        saveEpisodeProgressImmediate(newMap);
         return newMap;
-      });
-
-      console.log('[Analytics] Episode Completed:', {
-        episodeId: currentEpisode.id,
-        podcastId: currentPodcast.collectionId,
-        timestamp: new Date().toISOString(),
       });
     }
 
@@ -952,7 +980,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
 
       if (podcastToUse) {
         setLastContinuationType('same_creator');
-        console.log('[Analytics] Continuation: Playing from queue');
         await playEpisode(nextEpisode, podcastToUse);
         return;
       }
@@ -962,12 +989,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     const next = findNextEpisode();
     if (next) {
       setLastContinuationType(next.type);
-      console.log('[Analytics] Continuation:', {
-        type: next.type,
-        nextEpisodeId: next.episode.id,
-        fromEpisodeId: currentEpisode?.id,
-        timestamp: new Date().toISOString(),
-      });
 
       // If resuming, seek to saved position
       if (next.type === 'resume') {
@@ -978,7 +999,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
       }
     } else {
       setLastContinuationType('none');
-      console.log('[Analytics] Continuation: No next episode available');
     }
   }, [
     currentEpisode,
@@ -1000,7 +1020,6 @@ export const [PlayerProvider, usePlayer] = createContextHook(() => {
     if (event.type === TrackPlayerEvent.PlaybackQueueEnded) {
       if (currentEpisode?.id && hasHandledTrackEndForId.current !== String(currentEpisode.id)) {
         hasHandledTrackEndForId.current = String(currentEpisode.id);
-        console.log('PlayerContext - Track Ended (PlaybackQueueEnded), triggering handleTrackEnd');
         setTimeout(() => {
           handleTrackEndRef.current();
         }, 300);

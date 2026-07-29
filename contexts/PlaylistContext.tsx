@@ -44,7 +44,7 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) setPlaylists(JSON.parse(stored));
     } catch (e) {
-      console.error('Failed to load playlists:', e);
+      // silent catch
     }
   };
 
@@ -52,7 +52,7 @@ export function PlaylistProvider({ children }: { children: React.ReactNode }) {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
-      console.error('Failed to save playlists:', e);
+      // silent catch
     }
   };
 

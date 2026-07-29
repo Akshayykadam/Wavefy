@@ -12,6 +12,9 @@ const LAST_SEEN_KEY = 'wavefy_last_seen_episodes';
 const DOWNLOADS_STORAGE_KEY = 'podcat_downloads_metadata';
 const DOWNLOAD_DIR = FileSystem.documentDirectory + 'downloads/';
 
+const LAST_CHECK_KEY = 'wavefy_last_feed_check_timestamp';
+const MIN_CHECK_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes battery-saving cooldown
+
 export interface NotificationItem {
   id: string;
   podcastId: number;
@@ -28,8 +31,19 @@ export interface NotificationItem {
  * Used by both the background task AND the in-app refresh.
  * Returns the new notification items found.
  */
-export async function checkForNewEpisodes(): Promise<NotificationItem[]> {
+export async function checkForNewEpisodes(force: boolean = false): Promise<NotificationItem[]> {
   try {
+    if (!force) {
+      const lastCheck = await AsyncStorage.getItem(LAST_CHECK_KEY);
+      if (lastCheck) {
+        const elapsed = Date.now() - parseInt(lastCheck, 10);
+        if (elapsed < MIN_CHECK_INTERVAL_MS) {
+          return [];
+        }
+      }
+    }
+    await AsyncStorage.setItem(LAST_CHECK_KEY, Date.now().toString());
+
     // Read followed podcasts from AsyncStorage (context may not be available in background)
     const storedPodcasts = await AsyncStorage.getItem(FOLLOWED_STORAGE_KEY);
     if (!storedPodcasts) return [];
@@ -128,7 +142,6 @@ export async function checkForNewEpisodes(): Promise<NotificationItem[]> {
 
     return newNotifications;
   } catch (e) {
-    console.error('[BackgroundNotifications] checkForNewEpisodes error:', e);
     return [];
   }
 }
@@ -143,7 +156,6 @@ TaskManager.defineTask(BACKGROUND_TASK_NAME, async () => {
       ? BackgroundFetch.BackgroundFetchResult.NewData
       : BackgroundFetch.BackgroundFetchResult.NoData;
   } catch (e) {
-    console.error('[BackgroundNotifications] Task error:', e);
     return BackgroundFetch.BackgroundFetchResult.Failed;
   }
 });
@@ -159,10 +171,8 @@ export async function registerBackgroundFetch(): Promise<void> {
       stopOnTerminate: true,        // Stop task when user terminates the app (highly battery friendly)
       startOnBoot: false,           // Do not start on boot to prevent background execution before app launch
     });
-
-    console.log('[BackgroundNotifications] Background fetch registered (battery optimized)');
   } catch (e) {
-    console.error('[BackgroundNotifications] Failed to register background fetch:', e);
+    // silent catch
   }
 }
 

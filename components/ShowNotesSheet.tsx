@@ -225,7 +225,7 @@ export default function ShowNotesSheet({
         message: `${label}: ${url}`,
       });
     } catch (e) {
-      console.log('Error sharing:', e);
+      // silent catch
     }
   };
 

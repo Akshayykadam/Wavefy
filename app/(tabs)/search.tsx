@@ -115,7 +115,6 @@ export default function SearchScreen() {
           return (data.results || []) as Podcast[];
         }
       } catch (e) {
-        console.error('Error fetching search results:', e);
         return [];
       }
     },

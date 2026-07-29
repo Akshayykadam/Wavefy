@@ -35,7 +35,7 @@ export const [ContinuationSettingsProvider, useContinuationSettings] = createCon
                 setSettings({ ...DEFAULT_SETTINGS, ...parsed });
             }
         } catch (error) {
-            console.error('Failed to load continuation settings:', error);
+            // silent catch
         } finally {
             setIsLoaded(true);
         }
@@ -45,7 +45,7 @@ export const [ContinuationSettingsProvider, useContinuationSettings] = createCon
         try {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
         } catch (error) {
-            console.error('Failed to save continuation settings:', error);
+            // silent catch
         }
     };
 

@@ -76,7 +76,6 @@ export default function LibraryScreen() {
               podcast,
             }));
           } catch (e) {
-            console.warn(`Failed to parse RSS for ${podcast.collectionName}:`, e);
             return [];
           }
         })

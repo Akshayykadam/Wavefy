@@ -19,7 +19,7 @@ export const [LikedEpisodesProvider, useLikedEpisodes] = createContextHook(() =>
                 setLikedEpisodes(JSON.parse(stored));
             }
         } catch (error) {
-            console.error('Failed to load liked episodes:', error);
+            // silent catch
         }
     };
 
@@ -28,7 +28,7 @@ export const [LikedEpisodesProvider, useLikedEpisodes] = createContextHook(() =>
             await AsyncStorage.setItem(LIKED_EPISODES_KEY, JSON.stringify(episodes));
             setLikedEpisodes(episodes);
         } catch (error) {
-            console.error('Failed to save liked episodes:', error);
+            // silent catch
         }
     };
 

@@ -17,7 +17,7 @@ interface NotificationContextType {
   unreadCount: number;
   markRead: (id: string) => void;
   markAllRead: () => void;
-  refreshNotifications: () => Promise<void>;
+  refreshNotifications: (force?: boolean) => Promise<void>;
   isRefreshing: boolean;
 }
 
@@ -96,7 +96,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         setNotifications(JSON.parse(stored));
       }
     } catch (e) {
-      console.error('Failed to load notifications:', e);
+      // silent catch
     }
   };
 
@@ -104,24 +104,24 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     } catch (e) {
-      console.error('Failed to save notifications:', e);
+      // silent catch
     }
   };
 
-  const refreshNotifications = useCallback(async () => {
+  const refreshNotifications = useCallback(async (force: boolean = false) => {
     if (followedPodcasts.length === 0 || isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     setIsRefreshing(true);
 
     try {
-      const newItems = await checkForNewEpisodes();
+      await checkForNewEpisodes(force);
 
       // Reload all notifications from storage (background task may have added some too)
       const storedRaw = await AsyncStorage.getItem(STORAGE_KEY);
       const allNotifs: NotificationItem[] = storedRaw ? JSON.parse(storedRaw) : [];
       setNotifications(allNotifs);
     } catch (e) {
-      console.error('Failed to refresh notifications:', e);
+      // silent catch
     } finally {
       setIsRefreshing(false);
       isRefreshingRef.current = false;

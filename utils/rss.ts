@@ -64,7 +64,6 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
     }
 
     if (!response.ok) {
-      console.warn(`[RSS] HTTP ${response.status} for ${url}`);
       return [];
     }
 
@@ -183,7 +182,6 @@ export const parseRSS = async (url: string): Promise<Episode[]> => {
     }
     return episodes;
   } catch (error) {
-    console.error("Failed to parse RSS:", error);
     return [];
   }
 };
